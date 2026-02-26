@@ -1,0 +1,22 @@
+{
+  "name": "gemini-live-api",
+  "version": "1.0.0",
+  "description": "Production-grade API server for Gemini Live real-time voice chat",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@google/genai": "latest",
+    "busboy": "^1.6.0",
+    "dotenv": "^16.4.5",
+    "pdf-parse": "^2.4.5",
+    "ws": "^8.18.0",
+    "zod": "^4.3.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
