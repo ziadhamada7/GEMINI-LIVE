@@ -16,9 +16,8 @@ export default function SetupPage() {
   const handleFiles = (e) => {
     setFiles(Array.from(e.target.files));
   };
-
   const handleStart = async () => {
-    if (!topic.trim()) return;
+    if (!topic.trim() && files.length === 0) return;
     setLoading(true);
     setError(null);
 
@@ -121,7 +120,7 @@ export default function SetupPage() {
           <button
             className="start-btn"
             onClick={handleStart}
-            disabled={!topic.trim() || loading}
+            disabled={(!topic.trim() && files.length === 0) || loading}
           >
             {loading ? (
               <span className="btn-loading">
