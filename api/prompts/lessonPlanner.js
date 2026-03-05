@@ -1,9 +1,9 @@
 /**
- * prompts/lessonPlanner.js — V7  (Steps-based)
+ * prompts/lessonPlanner.js — V8  (Natural Teaching)
  *
  * Each section is an ordered array of "steps".
  * Each step has:  { speech, cmd }
- *   - speech: exact text the AI voices (short, ≤ 20 words)
+ *   - speech: teaching note / bullet point the AI explains naturally
  *   - cmd:    whiteboard draw command (or null for speech-only)
  *
  * Speech + draw fire SIMULTANEOUSLY for perfect sync.
@@ -27,15 +27,16 @@ Generate a lesson plan as **valid JSON** using the STEPS format below.
       "id": 1,
       "title": "Section Title",
       "steps": [
-        { "speech": "Welcome to our lesson on energy conservation.", "cmd": { "cmd": "title", "text": "Energy Conservation" } },
-        { "speech": "The core principle here is that energy cannot be created or destroyed.", "cmd": { "cmd": "heading", "text": "Core Principle", "col": "left" } },
-        { "speech": "We write this as the first law of thermodynamics.", "cmd": { "cmd": "equation", "text": "ΔU = Q − W", "label": "First Law", "col": "left" } },
-        { "speech": "This tells us that the change in internal energy equals heat minus work.", "cmd": { "cmd": "write", "text": "• ΔU = change in internal energy\\n• Q = heat added\\n• W = work done", "col": "left" } },
-        { "speech": "Notice the relationship between these variables.", "cmd": { "cmd": "triangle", "top": "ΔU", "bottomLeft": "Q", "bottomRight": "W", "col": "right" } },
-        { "speech": "As heat increases, internal energy increases proportionally.", "cmd": { "cmd": "graph", "type": "direct", "xAxis": "Heat (Q)", "yAxis": "ΔU", "col": "right" } },
-        { "speech": "This applies in many real-world situations.", "cmd": null },
-        { "speech": "For example, boiling water.", "cmd": { "cmd": "example", "text": "Boiling water: Q is added, W ≈ 0, so ΔU rises.", "col": "right" } },
-        { "speech": "Let me summarize what we covered.", "cmd": { "cmd": "summary", "text": "Energy is conserved. ΔU = Q − W." } }
+        { "speech": "welcome — energy conservation lesson", "cmd": { "cmd": "title", "text": "Energy Conservation" } },
+        { "speech": "core principle: energy cannot be created or destroyed", "cmd": { "cmd": "heading", "text": "Core Principle", "col": "left" } },
+        { "speech": "look at this diagram of a power plant. notice how energy transforms from heat to mechanical to electrical...", "cmd": { "cmd": "image", "query": "thermal power plant energy transformation diagram", "caption": "Energy Transformation in Power Plants", "col": "right" } },
+        { "speech": "first law of thermodynamics: ΔU = Q − W", "cmd": { "cmd": "equation", "text": "ΔU = Q − W", "label": "First Law", "col": "left" } },
+        { "speech": "explain each variable: ΔU = internal energy, Q = heat, W = work", "cmd": { "cmd": "write", "text": "• ΔU = change in internal energy\\n• Q = heat added\\n• W = work done", "col": "left" } },
+        { "speech": "triangle relationship between ΔU, Q, and W", "cmd": { "cmd": "triangle", "top": "ΔU", "bottomLeft": "Q", "bottomRight": "W", "col": "right" } },
+        { "speech": "direct relationship: more heat → more internal energy", "cmd": { "cmd": "graph", "type": "direct", "xAxis": "Heat (Q)", "yAxis": "ΔU", "col": "right" } },
+        { "speech": "real-world applications of this law", "cmd": null },
+        { "speech": "example: boiling water — Q added, W ≈ 0, so ΔU rises", "cmd": { "cmd": "example", "text": "Boiling water: Q is added, W ≈ 0, so ΔU rises.", "col": "right" } },
+        { "speech": "summary: energy is conserved, ΔU = Q − W", "cmd": { "cmd": "summary", "text": "Energy is conserved. ΔU = Q − W." } }
       ]
     }
   ],
@@ -45,10 +46,10 @@ Generate a lesson plan as **valid JSON** using the STEPS format below.
 ## CRITICAL RULES
 
 ### 1) Steps = Speech + Drawing SIMULTANEOUSLY
-- Each step = one short spoken sentence + one visual command (or null).
-- The speech and the drawing happen at THE SAME TIME. The viewer hears the sentence while the visual appears.
+- Each step = one teaching note + one visual command (or null).
+- The speech and the drawing happen at THE SAME TIME.
 - speech of a step MUST be directly related to its cmd. They must describe the same idea.
-- When cmd is null, the AI just speaks without drawing anything. Use this for transitions or brief remarks.
+- When cmd is null, the AI just speaks without drawing anything. Use this for transitions.
 
 ### 2) EXTREME DENSITY — No Dead Air
 - Every section MUST have 12 to 20 steps.
@@ -56,9 +57,12 @@ Generate a lesson plan as **valid JSON** using the STEPS format below.
 - NEVER have more than 2 consecutive speech-only steps (cmd: null).
 - Each section must be visually rich and diverse. Use MANY different command types.
 
-### 3) SHORT Sentences
-- Each speech MUST be 5 to 20 words. No long paragraphs.
-- The AI speaks ONLY the speech text — it does NOT ad-lib or add extra content.
+### 3) Speech = TEACHING NOTES (not final sentences)
+- Each speech is a SHORT teaching note or bullet point (5-20 words).
+- It describes WHAT to explain, not the exact words to say.
+- Format: "concept: key detail" or "explain: idea" or "example: scenario"
+- A voice AI will receive this note and explain it naturally in its own words.
+- Do NOT write full polished sentences — write compressed teaching cues.
 
 ### 4) Section Structure
 - Section 1 begins with a welcoming introduction step.
@@ -71,9 +75,10 @@ Generate a lesson plan as **valid JSON** using the STEPS format below.
 - Left: theory, definitions, formulas.
 - Right: examples, charts, graphs, step-by-step.
 
-### 6) Conversational Tone RESTRICTION
-- NO filler: "Exactly", "So", "Okay", "Alright", "As you can see", "Let me draw".
-- Direct, academic, confident. Solo lecture.
+### 6) Note Style
+- Write compressed teaching cues, not prose.
+- Example good: "ohm's law: V = IR, voltage equals current times resistance"
+- Example bad: "Now let's talk about Ohm's law which states that voltage equals current times resistance."
 
 ## VISUAL COMMAND DICTIONARY (40+ Commands)
 
@@ -121,11 +126,16 @@ Generate a lesson plan as **valid JSON** using the STEPS format below.
 | "underline" | { "cmd": "underline", "text": "Important", "col": "left" } |
 | "list" | { "cmd": "list", "title": "Properties", "items": ["Scalable","Linear","Measurable"], "col": "left" } |
 | "quiz" | ONE per lesson: { "cmd": "quiz", "question": "...", "options": ["A","B","C"], "correctIndex": 0 } |
+| "image" | { "cmd": "image", "query": "electric circuit diagram professional", "caption": "Simple Circuit", "col": "right" } |
 
 ## RULES
 
 - 12-20 steps per section. Maximize density.
 - Add exactly ONE "quiz" step in the ENTIRE lesson.
+- Use 1-2 "image" commands per lesson for real-world illustrations. Use specific, professional search queries.
+- MANDATORY: Include at LEAST 2 "image" commands across the lesson. The query must be descriptive and specific (e.g. "DNA double helix structure illustration", NOT just "DNA").
+- CRITICAL: When using an "image", the "speech" field MUST actively reference and explain the image (e.g. "Look at this diagram...", "As you can see in this picture..."). Never just place an image without talking about it.
+- Place images on the "right" column to complement theory on the left.
 - 4-5 sections total.
 - Use a diverse mix of commands — never more than 3 of the same type in a row.
 - graph "type" must be one of: "direct", "inverse", "exponential", "quadratic", "bell".
@@ -134,15 +144,20 @@ Output ONLY valid JSON. No markdown fences.`;
 }
 
 export function buildVoiceSystemInstruction(sectionTitle) {
-  return `You are a brilliant, world-class professor delivering a structured lecture on "${sectionTitle}".
+  return `You are a brilliant, world-class professor delivering a live lecture on "${sectionTitle}".
 
-Rules:
-- Read the given text EXACTLY as written. Do NOT change, rephrase, or add words.
-- NEVER add filler: "Alright", "Okay", "Exactly", "Yes", "So", "Let's see".
-- You are delivering a solo academic lecture. Do not act conversational.
-- Speak confidently, directly, and with genuine instructional enthusiasm.
-- Pause naturally at periods and commas.
-- Keep the same energy level throughout — do not trail off.`;
+You will receive TEACHING NOTES — short bullet points describing what to explain next.
+
+BEHAVIOR:
+- EXPLAIN each teaching note naturally in your own words, like a real professor at a whiteboard.
+- Do NOT read the note verbatim. Transform it into natural spoken explanation.
+- Keep each explanation to 1-3 sentences (5-15 seconds of speech).
+- Use natural connectors: "This means...", "Notice that...", "The key idea here is...", "What this tells us is..."
+- Be direct, confident, and enthusiastic about the subject.
+- NEVER use filler: "Alright", "Okay", "So", "Let's see", "As you can see".
+- After explaining the note, STOP speaking and wait for the next one. Do NOT continue on your own.
+- You are giving a solo academic lecture. Do not ask the student questions mid-lecture.
+- Maintain consistent energy — do not trail off or mumble.`;
 }
 
 export function buildQAInstruction(sectionTitle, lessonTitle) {

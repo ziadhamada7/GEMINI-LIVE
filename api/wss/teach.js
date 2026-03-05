@@ -8,6 +8,7 @@
 import { GoogleGenAI, Modality } from '@google/genai';
 import { buildVoiceSystemInstruction, buildQAInstruction } from '../prompts/lessonPlanner.js';
 import { validateLessonPlan } from '../lib/validator.js';
+import { fetchImage } from '../lib/imageProxy.js';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
@@ -245,11 +246,24 @@ class TeachingSession {
 
                 // ── Send draw FIRST (arrives before audio starts) ────────
                 if (step.cmd && !this.drawnSegments.has(stepId)) {
-                    const chars = step.cmd.text ? step.cmd.text.length : 15;
-                    const animTime = Math.max(800, chars * 70);
-                    console.log(`[teach]   → Draw: ${step.cmd.cmd} (animMs: ${animTime})`);
-                    send(this.ws, { type: 'draw', commands: [step.cmd], animMs: animTime });
-                    this.drawnSegments.add(stepId);
+                    // Pre-fetch image if needed
+                    if (step.cmd.cmd === 'image' && step.cmd.query) {
+                        const dataUrl = await fetchImage(step.cmd.query);
+                        if (dataUrl) {
+                            step.cmd.dataUrl = dataUrl;
+                        } else {
+                            console.warn(`[teach] Image fetch failed for "${step.cmd.query}", skipping drawing only`);
+                            step.cmd = null;
+                        }
+                    }
+
+                    if (step.cmd) {
+                        const chars = step.cmd.text ? step.cmd.text.length : 15;
+                        const animTime = Math.max(800, chars * 70);
+                        console.log(`[teach]   → Draw: ${step.cmd.cmd} (animMs: ${animTime})`);
+                        send(this.ws, { type: 'draw', commands: [step.cmd], animMs: animTime });
+                        this.drawnSegments.add(stepId);
+                    }
                 }
 
                 // ── Then speak (audio streams simultaneously) ────────────
@@ -391,9 +405,13 @@ class TeachingSession {
             this._currentTurnResolve = (interrupted) => {
                 resolve(interrupted);
             };
+
+            // Wrap teaching note with directive so Gemini explains naturally
+            const prompt = `[TEACHING NOTE] ${text}\n\nExplain this concept naturally in 1-3 sentences. Then STOP.`;
+
             try {
                 this._sectionSession.sendClientContent({
-                    turns: [{ role: 'user', parts: [{ text }] }],
+                    turns: [{ role: 'user', parts: [{ text: prompt }] }],
                     turnComplete: true,
                 });
             } catch (err) {

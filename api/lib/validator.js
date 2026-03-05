@@ -24,6 +24,8 @@ const ALLOWED_CMDS = new Set([
     'highlight', 'definition', 'comparison', 'timeline', 'flow',
     'badge', 'icon_label', 'note', 'quote', 'code_block',
     'step_block', 'progress', 'label', 'vs_block', 'process',
+    // V8: image
+    'image',
 ]);
 
 const MAX_SECTIONS = 6;
@@ -191,6 +193,13 @@ function validateCommand(cmd) {
         case 'clear':
         case 'newline':
         case 'divider':
+            break;
+
+        // ── Image ────────────────────────────────────────────────────────
+        case 'image':
+            if (typeof cmd.query !== 'string' || !cmd.query.trim()) return null;
+            cmd.query = truncStr(cmd.query, 100);
+            if (cmd.caption) cmd.caption = truncStr(cmd.caption, 60);
             break;
     }
     return cmd;

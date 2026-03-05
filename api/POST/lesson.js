@@ -196,6 +196,36 @@ export default async function handler(req, res) {
         }
         plan = validation.plan;
 
+        // ── Post-process: ensure at least 2 image commands exist ──────────
+        const allCmds = plan.sections.flatMap(s => (s.steps || []).map(st => st.cmd?.cmd)).filter(Boolean);
+        const imageCount = allCmds.filter(c => c === 'image').length;
+        if (imageCount < 2) {
+            console.log(`[POST/lesson] Only ${imageCount} image commands found, injecting...`);
+            const topic = plan.title || '';
+            // Inject into sections 1 and 3 (or last) at position 3 (after intro steps)
+            const targets = [0, Math.min(2, plan.sections.length - 1)];
+            for (const si of targets) {
+                const sec = plan.sections[si];
+                if (!sec || !sec.steps) continue;
+                // Don't double-inject
+                if (sec.steps.some(s => s.cmd?.cmd === 'image')) continue;
+                const query = `${topic} ${sec.title} educational diagram illustration`.trim();
+                const imageStep = {
+                    speech: `Look at this visual illustration here. This diagram helps us understand ${sec.title.toLowerCase()}...`,
+                    cmd: {
+                        cmd: 'image',
+                        query: query,
+                        caption: sec.title,
+                        col: 'right',
+                    },
+                };
+                // Insert after the 3rd step (after title + heading + first content)
+                const insertAt = Math.min(3, sec.steps.length);
+                sec.steps.splice(insertAt, 0, imageStep);
+                console.log(`[POST/lesson] Injected image into section ${si + 1}: "${query}"`);
+            }
+        }
+
         // Debug: log step counts per section
         for (let i = 0; i < plan.sections.length; i++) {
             const sec = plan.sections[i];
