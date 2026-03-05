@@ -18,10 +18,13 @@ function send(ws, obj) { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 const S = {
-    TEACHING: 'teaching', LISTENING: 'listening',
+    TEACHING: 'teaching', PAUSED: 'paused', LISTENING: 'listening',
     ANSWERING: 'answering', CONFIRMING: 'confirming',
     STOPPED: 'stopped', FINISHED: 'finished',
 };
+
+// Commands that represent complex content — add a brief thinking pause after
+const COMPLEX_CMDS = new Set(['equation', 'formula_block', 'graph', 'triangle', 'table', 'code_block']);
 
 class TeachingSession {
     constructor(ws) {
@@ -43,6 +46,13 @@ class TeachingSession {
 
         this.drawnSegments = new Set();
         this.qaConnectId = 0;
+
+        // Pause/Play
+        this._paused = false;
+        this._pauseResolve = null;
+
+        // Section skip
+        this._skipToSection = -1;
     }
 
     setState(s) {
@@ -91,6 +101,8 @@ class TeachingSession {
     stop() {
         this.shouldStop = true;
         this._interrupted = true;
+        this._paused = false;
+        this._pauseResolve?.();
         this._closeSectionSession();
         this._closeQA();
         this._pendingResume?.();
@@ -100,6 +112,48 @@ class TeachingSession {
 
     cleanup() {
         this.shouldStop = true;
+        this._paused = false;
+        this._pauseResolve?.();
+        this._closeSectionSession();
+        this._closeQA();
+        this._pendingResume?.();
+    }
+
+    // ── Pause / Play ─────────────────────────────────────────────────────
+    handlePause() {
+        if (this.state !== S.TEACHING) return;
+        console.log('[teach] PAUSE');
+        this._paused = true;
+        this.setState(S.PAUSED);
+    }
+
+    handlePlay() {
+        if (this.state !== S.PAUSED) return;
+        console.log('[teach] PLAY (resume from pause)');
+        this._paused = false;
+        this.setState(S.TEACHING);
+        if (this._pauseResolve) {
+            const r = this._pauseResolve;
+            this._pauseResolve = null;
+            r();
+        }
+    }
+
+    _waitIfPaused() {
+        if (!this._paused) return Promise.resolve();
+        return new Promise(resolve => { this._pauseResolve = resolve; });
+    }
+
+    // ── Section Skip ──────────────────────────────────────────────────────
+    handleSkipSection(targetIdx) {
+        if (!this.plan || this.shouldStop) return;
+        const idx = Number(targetIdx);
+        if (isNaN(idx) || idx < 0 || idx >= this.plan.sections.length) return;
+        console.log(`[teach] SKIP to section ${idx + 1}`);
+        this._skipToSection = idx;
+        this._paused = false;
+        this._pauseResolve?.();
+        this._interrupted = true;
         this._closeSectionSession();
         this._closeQA();
         this._pendingResume?.();
@@ -114,8 +168,18 @@ class TeachingSession {
         this.plan = v.plan;
         console.log(`[teach] Plan: "${this.plan.title}" — ${this.plan.sections.length} sections`);
 
-        for (let i = 0; i < this.plan.sections.length; i++) {
+        let i = 0;
+        while (i < this.plan.sections.length) {
             if (this.shouldStop || this.ws.readyState !== 1) break;
+
+            // Handle section skip
+            if (this._skipToSection >= 0) {
+                i = this._skipToSection;
+                this._skipToSection = -1;
+                this._interrupted = false;
+                this.drawnSegments.clear();
+            }
+
             this.sectionIdx = i;
             const sec = this.plan.sections[i];
 
@@ -132,6 +196,7 @@ class TeachingSession {
             await this._runSection(speechSteps, sec.title);
 
             if (this.shouldStop) break;
+            if (this._skipToSection >= 0) continue; // skip was requested during section
 
             for (const qs of quizSteps) {
                 if (this.shouldStop) break;
@@ -139,6 +204,7 @@ class TeachingSession {
             }
 
             if (i < this.plan.sections.length - 1) await sleep(1500);
+            i++;
         }
 
         if (!this.shouldStop && this.ws.readyState === 1) {
@@ -163,10 +229,17 @@ class TeachingSession {
             let interrupted = false;
 
             // Inner loop: execute each step
-            while (si < steps.length && !this.shouldStop && this._sectionSession) {
+            while (si < steps.length && !this.shouldStop && this._sectionSession && this._skipToSection < 0) {
+                // ── Pause gate ────────────────────────────────────────────
+                await this._waitIfPaused();
+                if (this.shouldStop || this._skipToSection >= 0) break;
+
                 this.segmentIdx = si;
                 const step = steps[si];
                 const stepId = `S${this.sectionIdx}_${si}`;
+
+                // ── Send step progress to frontend ───────────────────────
+                send(this.ws, { type: 'step_progress', data: { current: si + 1, total: steps.length } });
 
                 console.log(`[teach] Step ${si + 1}/${steps.length}: speech="${(step.speech || '').slice(0, 50)}..." cmd=${step.cmd?.cmd || 'NONE'}`);
 
@@ -190,6 +263,11 @@ class TeachingSession {
                 } else {
                     // Visual-only step — small pause to let animation play
                     await sleep(600);
+                }
+
+                // ── Smart pacing: pause after complex content ────────────
+                if (step.cmd && COMPLEX_CMDS.has(step.cmd.cmd)) {
+                    await sleep(1200);
                 }
 
                 if (!this._sectionSession) {
@@ -487,6 +565,9 @@ export default async function handler(ws) {
             case 'audio': s.handleStudentAudio(msg.data, msg.mimeType ?? 'audio/pcm;rate=16000'); break;
             case 'mic_off': s.handleMicOff(); break;
             case 'resume': s.handleResume(); break;
+            case 'pause': s.handlePause(); break;
+            case 'play': s.handlePlay(); break;
+            case 'skip_section': s.handleSkipSection(msg.index); break;
             case 'stop': s.stop(); break;
             case 'quiz_answer': s.handleQuizAnswer(msg.answer); break;
         }

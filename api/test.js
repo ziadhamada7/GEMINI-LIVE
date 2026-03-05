@@ -1,6 +1,6 @@
 import WebSocket from 'ws';
 
-const ws = new WebSocket('ws://localhost:3001/teach');
+const ws = new WebSocket('ws://156.218.252.71:3001/teach');
 
 ws.on('open', () => {
     console.log('Connected');

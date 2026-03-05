@@ -125,26 +125,66 @@ export default async function handler(req, res) {
 
         // Call Gemini text model to generate the lesson plan
         console.log('[POST/lesson] Generating lesson plan...');
-        const result = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                temperature: 0.7,
-            },
-        });
+        let result;
+        try {
+            result = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    temperature: 0.7,
+                },
+            });
+        } catch (apiErr) {
+            console.error('[POST/lesson] Gemini API call failed:', apiErr.message);
+            res.json({ error: 'Gemini API error: ' + apiErr.message }, 500);
+            return;
+        }
 
-        const responseText = result.text || '';
+        // Extract text — try multiple paths for robustness
+        let responseText = '';
+        if (typeof result?.text === 'string') {
+            responseText = result.text;
+        } else if (result?.candidates?.[0]?.content?.parts?.[0]?.text) {
+            responseText = result.candidates[0].content.parts[0].text;
+        } else {
+            console.error('[POST/lesson] Could not extract text from result. Keys:', Object.keys(result || {}));
+            console.error('[POST/lesson] Result snapshot:', JSON.stringify(result, null, 2).slice(0, 800));
+            res.json({ error: 'Gemini returned no text content' }, 500);
+            return;
+        }
+        console.log(`[POST/lesson] Raw response length: ${responseText.length}`);
+        console.log(`[POST/lesson] Raw response (first 300): ${responseText.slice(0, 300)}`);
+
         let plan;
         try {
-            // Strip code fences if present
-            const cleaned = responseText.replace(/^```json\n?/i, '').replace(/\n?```$/i, '').trim();
-            plan = JSON.parse(cleaned);
-        } catch (err) {
-            console.error('[POST/lesson] Failed to parse plan JSON:', err.message);
-            console.error('[POST/lesson] Raw response:', responseText.slice(0, 500));
-            res.json({ error: 'Failed to generate lesson plan — invalid format', raw: responseText.slice(0, 200) }, 500);
-            return;
+            // Strategy 1: Direct parse (works when responseMimeType='application/json' is respected)
+            plan = JSON.parse(responseText);
+        } catch {
+            try {
+                // Strategy 2: Strip markdown code fences
+                const cleaned = responseText
+                    .replace(/^```(?:json)?\s*\n?/i, '')
+                    .replace(/\n?\s*```\s*$/i, '')
+                    .trim();
+                plan = JSON.parse(cleaned);
+            } catch {
+                try {
+                    // Strategy 3: Extract first { ... } JSON block
+                    const start = responseText.indexOf('{');
+                    const end = responseText.lastIndexOf('}');
+                    if (start >= 0 && end > start) {
+                        plan = JSON.parse(responseText.slice(start, end + 1));
+                    } else {
+                        throw new Error('No JSON object found in response');
+                    }
+                } catch (err) {
+                    console.error('[POST/lesson] All parsing strategies failed:', err.message);
+                    console.error('[POST/lesson] Full raw response:', responseText.slice(0, 1000));
+                    res.json({ error: 'Failed to generate lesson plan — invalid format', raw: responseText.slice(0, 300) }, 500);
+                    return;
+                }
+            }
         }
 
         // Validate with Zod
