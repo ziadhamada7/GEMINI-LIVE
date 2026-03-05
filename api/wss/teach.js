@@ -291,8 +291,10 @@ class TeachingSession {
 
                 si++;
             }
-
             if (this.shouldStop) break;
+
+            // If we broke out because of a section skip, stop trying to resume this section
+            if (this._skipToSection >= 0) break;
 
             if (interrupted) {
                 this._closeSectionSession();
