@@ -45,17 +45,18 @@ function float32ToBase64(f32) {
  */
 export function useAudio() {
     const audioCtxRef = useRef(null);
+    const gainNodeRef = useRef(null);
     const mediaStreamRef = useRef(null);
     const processorRef = useRef(null);
     const [micActive, setMicActive] = useState(false);
     const onAudioChunkRef = useRef(null);
 
     // Pre-buffer system
-    const bufferRef = useRef([]);          // accumulated items: can be Float32 chunks OR objects {type:'event', data}
-    const bufferAudioSamplesRef = useRef(0); // track audio samples only
+    const bufferRef = useRef([]);
+    const bufferAudioSamplesRef = useRef(0);
     const isPlayingRef = useRef(false);
     const isFirstChunkRef = useRef(true);
-    const nextPlayTimeRef = useRef(0);     // schedule next chunk at this audioContext time
+    const nextPlayTimeRef = useRef(0);
 
     // Event tracking: schedule timeouts for synced events
     const scheduledEventsRef = useRef([]);
@@ -64,6 +65,9 @@ export function useAudio() {
     const ensureCtx = useCallback(async () => {
         if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
             audioCtxRef.current = new AudioContext({ sampleRate: SAMPLE_RATE_OUT });
+            // Create gain node for volume control
+            gainNodeRef.current = audioCtxRef.current.createGain();
+            gainNodeRef.current.connect(audioCtxRef.current.destination);
         }
         if (audioCtxRef.current.state === 'suspended') {
             await audioCtxRef.current.resume();
@@ -117,7 +121,7 @@ export function useAudio() {
 
             const source = ctx.createBufferSource();
             source.buffer = audioBuffer;
-            source.connect(ctx.destination);
+            source.connect(gainNodeRef.current || ctx.destination);
 
             source.start(startAt);
             nextPlayTimeRef.current = startAt + audioBuffer.duration;
@@ -182,6 +186,13 @@ export function useAudio() {
     // ── Set audio started callback (Removed as replaced by window events) ──────
     const setOnAudioStarted = useCallback((fn) => { }, []);
 
+    // ── Volume Control ────────────────────────────────────────────────────────
+    const setGainValue = useCallback((v) => {
+        if (gainNodeRef.current) {
+            gainNodeRef.current.gain.setValueAtTime(Math.max(0, Math.min(2, v)), audioCtxRef.current?.currentTime || 0);
+        }
+    }, []);
+
     // ── Reset first chunk flag (for new sections) ─────────────────────────────
     const resetBuffer = useCallback(async () => {
         bufferRef.current = [];
@@ -242,6 +253,7 @@ export function useAudio() {
         clearAudioQueue,
         resetBuffer,
         setOnAudioStarted,
+        setGainValue,
         startMic,
         stopMic,
         micActive,

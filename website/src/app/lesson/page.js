@@ -4,7 +4,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import Whiteboard from '@/components/Whiteboard';
 import { useAudio } from '@/hooks/useAudio';
 
-const WS_URL = process.env.NEXT_PUBLIC_API_WS_URL ?? 'ws://localhost:3001';
+const WS_URL = process.env.NEXT_PUBLIC_API_WS_URL ?? 'ws://156.218.252.71:3001';
 
 export default function LessonPage() {
     const [status, setStatus] = useState('loading');
@@ -16,11 +16,18 @@ export default function LessonPage() {
     const [quizResult, setQuizResult] = useState(null);
     const [selectedAnswer, setSelectedAnswer] = useState(null);
 
+    // New state for improvements
+    const [stepProgress, setStepProgress] = useState({ current: 0, total: 0 });
+    const [volume, setVolume] = useState(1);
+    const [showIntro, setShowIntro] = useState(null); // { index, title }
+    const [sectionTitles, setSectionTitles] = useState([]);
+
     const wsRef = useRef(null);
     const boardRef = useRef(null);
     const transcriptRef = useRef(null);
     const retryTimerRef = useRef(null);
-    const { enqueueItem, clearAudioQueue, startMic, stopMic, micActive } = useAudio();
+    const planRef = useRef(null);
+    const { enqueueItem, clearAudioQueue, startMic, stopMic, micActive, setGainValue } = useAudio();
 
     const addTranscript = useCallback((role, text) => {
         setTranscript(prev => [...prev, { id: Date.now() + Math.random(), role, text }]);
@@ -29,11 +36,18 @@ export default function LessonPage() {
         }, 50);
     }, []);
 
+
+    // ── Volume change handler ─────────────────────────────────────────────
+    const handleVolumeChange = useCallback((e) => {
+        const v = parseFloat(e.target.value);
+        setVolume(v);
+        setGainValue(v);
+    }, [setGainValue]);
+
     // ── WebSocket with retry ──────────────────────────────────────────────
     const connect = useCallback((plan, retryCount = 0) => {
         if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return;
 
-        // Clean up old connection cleanly without triggering auto-retry
         if (wsRef.current) {
             wsRef.current.onclose = null;
             try { wsRef.current.close(); } catch { }
@@ -61,6 +75,13 @@ export default function LessonPage() {
                     break;
                 case 'section':
                     setSection(msg.data);
+                    setStepProgress({ current: 0, total: 0 });
+                    // Section intro animation
+                    setShowIntro({ index: msg.data.index, title: msg.data.title });
+                    setTimeout(() => setShowIntro(null), 2000);
+                    break;
+                case 'step_progress':
+                    setStepProgress(msg.data);
                     break;
                 case 'draw':
                     if (msg.commands) {
@@ -96,7 +117,6 @@ export default function LessonPage() {
         ws.onclose = (e) => {
             console.warn('[ws] Closed, code:', e.code);
             wsRef.current = null;
-            // Auto-retry if not a clean close and haven't retried too many times
             if (e.code !== 1000 && retryCount < 3) {
                 console.log(`[ws] Retrying in 2s... (attempt ${retryCount + 2})`);
                 setStatus('loading');
@@ -106,9 +126,7 @@ export default function LessonPage() {
             }
         };
 
-        ws.onerror = () => {
-            // console.error('[ws] Connection error'); // Muted: onclose will fire after this and handle retries
-        };
+        ws.onerror = () => { };
     }, [enqueueItem, addTranscript]);
 
     // ── Sync Event Listener ──────────────────────────────────────────────
@@ -133,7 +151,9 @@ export default function LessonPage() {
         }
         try {
             const plan = JSON.parse(planJson);
+            planRef.current = plan;
             setLessonTitle(plan.title || 'Lesson');
+            setSectionTitles((plan.sections || []).map(s => s.title));
             connect(plan);
         } catch {
             setStatus('error');
@@ -148,29 +168,20 @@ export default function LessonPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ── Mic Toggle (smart: stays on during Q&A) ───────────────────────────
+    // ── Mic Toggle ────────────────────────────────────────────────────────
     const handleMicToggle = useCallback(async () => {
         console.log('[mic] Toggle. micActive:', micActive, 'status:', status);
         const ws = wsRef.current;
-        if (!ws || ws.readyState !== WebSocket.OPEN) {
-            console.warn('[mic] No WS connection');
-            return;
-        }
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
         if (micActive) {
-            // Student pressed mic off — stop recording
-            console.log('[mic] Stopping mic');
             stopMic();
             ws.send(JSON.stringify({ type: 'mic_off' }));
             return;
         }
 
-        // Start mic
-        console.log('[mic] Starting...');
-        clearAudioQueue(); // stop teacher audio
+        clearAudioQueue();
         ws.send(JSON.stringify({ type: 'mic_on' }));
-
-        // Wait briefly for server to set up QA
         await new Promise(r => setTimeout(r, 300));
 
         try {
@@ -181,17 +192,49 @@ export default function LessonPage() {
                     }));
                 }
             });
-            console.log('[mic] Recording started');
         } catch (err) {
             console.error('[mic] Mic failed:', err);
             ws.send(JSON.stringify({ type: 'mic_off' }));
         }
     }, [micActive, startMic, stopMic, clearAudioQueue, status]);
 
-    // ── Resume (Continue Lesson) ──────────────────────────────────────────
+    // ── Pause / Play ──────────────────────────────────────────────────────
+    const handlePause = useCallback(() => {
+        const ws = wsRef.current;
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({ type: 'pause' }));
+        clearAudioQueue();
+    }, [clearAudioQueue]);
+
+    const handlePlay = useCallback(() => {
+        const ws = wsRef.current;
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({ type: 'play' }));
+    }, []);
+
+    // ── Section Skip ──────────────────────────────────────────────────────
+    const handleSkipSection = useCallback((idx) => {
+        const ws = wsRef.current;
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        clearAudioQueue();
+        if (boardRef.current) boardRef.current.clear();
+        ws.send(JSON.stringify({ type: 'skip_section', index: idx }));
+    }, [clearAudioQueue]);
+
+    const handlePrevSection = useCallback(() => {
+        if (!section || section.index <= 1) return;
+        handleSkipSection(section.index - 2); // 0-indexed
+    }, [section, handleSkipSection]);
+
+    const handleNextSection = useCallback(() => {
+        if (!section || !planRef.current) return;
+        if (section.index >= planRef.current.sections.length) return;
+        handleSkipSection(section.index); // current index = next 0-indexed
+    }, [section, handleSkipSection]);
+
+    // ── Resume (Continue Lesson from Q&A) ─────────────────────────────────
     const handleResume = useCallback(() => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-        console.log('[lesson] Resume requested');
         stopMic();
         wsRef.current.send(JSON.stringify({ type: 'resume' }));
     }, [stopMic]);
@@ -218,6 +261,7 @@ export default function LessonPage() {
     // ── Derived UI state ──────────────────────────────────────────────────
     const statusLabels = {
         loading: '⏳ Connecting…', idle: 'Ready', teaching: '🎓 Teaching',
+        paused: '⏸ Paused',
         listening: '👂 Listening…', answering: '💬 Answering…',
         confirming: '🤔 Your turn…', stopped: '⏹ Stopped',
         finished: '✅ Complete', error: '⚠ Error', disconnected: '🔌 Disconnected',
@@ -225,16 +269,35 @@ export default function LessonPage() {
 
     const isTerminal = ['finished', 'stopped', 'disconnected', 'error'].includes(status);
     const isQA = ['listening', 'answering', 'confirming'].includes(status);
-
-    // Mic button: enabled during teaching (to interrupt) + confirming (to ask more)
-    // During listening, mic is already on
-    // During answering, disabled (AI is talking)
     const canToggleMic = status === 'teaching' || status === 'confirming' || (status === 'listening' && micActive);
-
-    // Visual mic state
     const micState = micActive ? 'recording' : isQA ? 'qa' : 'idle';
-
     const progress = section ? `${section.index} / ${section.total}` : '';
+    const stepPct = stepProgress.total > 0 ? Math.round((stepProgress.current / stepProgress.total) * 100) : 0;
+
+    // ── Keyboard Shortcuts ────────────────────────────────────────────────
+    useEffect(() => {
+        const handleKey = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            switch (e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    if (status === 'teaching') handlePause();
+                    else if (status === 'paused') handlePlay();
+                    break;
+                case 'KeyM':
+                    if (canToggleMic) handleMicToggle();
+                    break;
+                case 'ArrowLeft':
+                    handlePrevSection();
+                    break;
+                case 'ArrowRight':
+                    handleNextSection();
+                    break;
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [status, handlePause, handlePlay, handleMicToggle, handlePrevSection, handleNextSection, canToggleMic]);
 
     return (
         <>
@@ -253,9 +316,27 @@ export default function LessonPage() {
                     </div>
                 </header>
 
+                {/* Step Progress Bar */}
+                {stepProgress.total > 0 && (
+                    <div className="step-progress-bar">
+                        <div className="step-progress-fill" style={{ width: `${stepPct}%` }} />
+                        <span className="step-progress-label">{stepProgress.current}/{stepProgress.total} steps</span>
+                    </div>
+                )}
+
                 {/* Whiteboard */}
                 <div className="whiteboard-container">
                     <Whiteboard ref={boardRef} width={880} height={520} />
+
+                    {/* Section Intro Overlay */}
+                    {showIntro && (
+                        <div className="section-intro-overlay">
+                            <div className="section-intro-card">
+                                <span className="section-intro-number">Section {showIntro.index}</span>
+                                <h2 className="section-intro-title">{showIntro.title}</h2>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Quiz Overlay */}
@@ -304,6 +385,7 @@ export default function LessonPage() {
                     </div>
                 )}
 
+
                 {/* Errors */}
                 {errors.length > 0 && (
                     <div className="error-log" role="log">
@@ -317,6 +399,28 @@ export default function LessonPage() {
 
                 {/* ─── Bottom Controls ─── */}
                 <div className="lesson-controls">
+                    {/* Section Nav — Previous */}
+                    <button
+                        className="ctrl-btn nav"
+                        onClick={handlePrevSection}
+                        disabled={isTerminal || !section || section.index <= 1}
+                        title="Previous section (←)"
+                    >
+                        ⏮
+                    </button>
+
+                    {/* Pause / Play */}
+                    {(status === 'teaching' || status === 'paused') && (
+                        <button
+                            className={`ctrl-btn pause-play ${status === 'paused' ? 'paused' : ''}`}
+                            onClick={status === 'paused' ? handlePlay : handlePause}
+                            title={status === 'paused' ? 'Resume (Space)' : 'Pause (Space)'}
+                        >
+                            {status === 'paused' ? '▶' : '⏸'}
+                            <span>{status === 'paused' ? 'Play' : 'Pause'}</span>
+                        </button>
+                    )}
+
                     {/* Mic — interrupt or talk */}
                     <button
                         className={`mic-circle ${micState}`}
@@ -324,7 +428,7 @@ export default function LessonPage() {
                         disabled={isTerminal || !canToggleMic}
                         title={
                             micActive ? 'Stop recording'
-                                : status === 'teaching' ? 'Ask a question'
+                                : status === 'teaching' ? 'Ask a question (M)'
                                     : status === 'confirming' ? 'Ask a follow-up'
                                         : 'Microphone'
                         }
@@ -339,6 +443,30 @@ export default function LessonPage() {
                             ▶ <span>Continue Lesson</span>
                         </button>
                     )}
+
+                    {/* Section Nav — Next */}
+                    <button
+                        className="ctrl-btn nav"
+                        onClick={handleNextSection}
+                        disabled={isTerminal || !section || !planRef.current || section.index >= planRef.current.sections.length}
+                        title="Next section (→)"
+                    >
+                        ⏭
+                    </button>
+
+                    {/* Volume Slider */}
+                    <div className="volume-control">
+                        <span className="volume-icon">{volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}</span>
+                        <input
+                            type="range"
+                            className="volume-slider"
+                            min="0" max="1" step="0.05"
+                            value={volume}
+                            onChange={handleVolumeChange}
+                            title={`Volume: ${Math.round(volume * 100)}%`}
+                        />
+                    </div>
+
 
                     {/* Stop */}
                     <button className="ctrl-btn stop" onClick={handleStop} disabled={isTerminal}>
