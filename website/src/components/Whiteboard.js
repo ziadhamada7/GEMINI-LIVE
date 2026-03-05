@@ -286,6 +286,14 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'title': {
                 c.y += 8;
                 const text = cmd.text || '';
+                // Text glow effect
+                ctx.save();
+                ctx.shadowColor = C.title;
+                ctx.shadowBlur = 12;
+                ctx.font = F.title;
+                ctx.fillStyle = 'transparent';
+                ctx.fillText(text, c.x, c.y);
+                ctx.restore();
                 await _handwrite(ctx, text, c.x, c.y, F.title, C.title, animMs * 1.0);
                 ctx.font = F.title;
                 const tw = ctx.measureText(text).width;
@@ -298,7 +306,19 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'heading': {
                 c.y += 10;
                 const text = cmd.text || '';
+                // Text glow effect
+                ctx.save();
+                ctx.shadowColor = C.blue;
+                ctx.shadowBlur = 8;
+                ctx.font = F.writeBd;
+                ctx.fillStyle = 'transparent';
+                ctx.fillText(text, c.x, c.y);
+                ctx.restore();
                 await _handwrite(ctx, text, c.x, c.y, F.writeBd, C.blue, animMs);
+                // Animated underline sweep
+                ctx.font = F.writeBd;
+                const hw = ctx.measureText(text).width;
+                await animSketch(ctx, c.x, c.y + 6, c.x + hw, c.y + 6, C.blue + '66', 1.5, 1, 300);
                 c.y += 32;
                 break;
             }
@@ -1216,6 +1236,100 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 ctx.fillStyle = C.muted;
                 ctx.fillText(text, c.x, c.y);
                 c.y += 18;
+                break;
+            }
+
+
+            // ── IMAGE ────────────────────────────────────────────────────────
+            case 'image': {
+                if (!cmd.dataUrl) break;
+                const maxImgW = maxW - 20;
+                const maxImgH = 180;
+                c.y += 8;
+
+                await new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Calculate size maintaining aspect ratio
+                        let iw = img.width, ih = img.height;
+                        const scale = Math.min(maxImgW / iw, maxImgH / ih, 1);
+                        iw = Math.round(iw * scale);
+                        ih = Math.round(ih * scale);
+
+                        // Fade-in animation
+                        let opacity = 0;
+                        const fadeIn = () => {
+                            if (!canvasRef.current) { resolve(); return; }
+                            opacity += 0.06;
+                            if (opacity > 1) opacity = 1;
+                            const gCtx = canvasRef.current.getContext('2d');
+                            gCtx.save();
+                            gCtx.globalAlpha = opacity;
+
+                            // Shadow
+                            gCtx.shadowColor = 'rgba(0,0,0,0.4)';
+                            gCtx.shadowBlur = 10;
+                            gCtx.shadowOffsetY = 4;
+
+                            // Rounded rectangle clip
+                            const r = 8;
+                            const ix = c.x, iy = c.y;
+                            gCtx.beginPath();
+                            gCtx.moveTo(ix + r, iy);
+                            gCtx.lineTo(ix + iw - r, iy);
+                            gCtx.quadraticCurveTo(ix + iw, iy, ix + iw, iy + r);
+                            gCtx.lineTo(ix + iw, iy + ih - r);
+                            gCtx.quadraticCurveTo(ix + iw, iy + ih, ix + iw - r, iy + ih);
+                            gCtx.lineTo(ix + r, iy + ih);
+                            gCtx.quadraticCurveTo(ix, iy + ih, ix, iy + ih - r);
+                            gCtx.lineTo(ix, iy + r);
+                            gCtx.quadraticCurveTo(ix, iy, ix + r, iy);
+                            gCtx.closePath();
+                            gCtx.clip();
+                            gCtx.drawImage(img, ix, iy, iw, ih);
+                            gCtx.restore();
+
+                            if (opacity < 1) {
+                                requestAnimationFrame(fadeIn);
+                            } else {
+                                // Draw border
+                                gCtx.strokeStyle = 'rgba(96,165,250,0.3)';
+                                gCtx.lineWidth = 1.5;
+                                gCtx.beginPath();
+                                gCtx.moveTo(c.x + r, c.y);
+                                gCtx.lineTo(c.x + iw - r, c.y);
+                                gCtx.quadraticCurveTo(c.x + iw, c.y, c.x + iw, c.y + r);
+                                gCtx.lineTo(c.x + iw, c.y + ih - r);
+                                gCtx.quadraticCurveTo(c.x + iw, c.y + ih, c.x + iw - r, c.y + ih);
+                                gCtx.lineTo(c.x + r, c.y + ih);
+                                gCtx.quadraticCurveTo(c.x, c.y + ih, c.x, c.y + ih - r);
+                                gCtx.lineTo(c.x, c.y + r);
+                                gCtx.quadraticCurveTo(c.x, c.y, c.x + r, c.y);
+                                gCtx.closePath();
+                                gCtx.stroke();
+
+                                c.y += ih + 6;
+
+                                // Caption
+                                if (cmd.caption) {
+                                    gCtx.font = F.label;
+                                    gCtx.fillStyle = C.muted;
+                                    gCtx.fillText(cmd.caption, c.x, c.y + 10);
+                                    c.y += 18;
+                                }
+
+                                resolve();
+                            }
+                        };
+                        requestAnimationFrame(fadeIn);
+                    };
+                    img.onerror = () => {
+                        console.warn('[Whiteboard] Failed to load image');
+                        resolve();
+                    };
+                    img.src = cmd.dataUrl;
+                });
+                c.y += 8;
                 break;
             }
 

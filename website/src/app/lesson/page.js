@@ -4,7 +4,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import Whiteboard from '@/components/Whiteboard';
 import { useAudio } from '@/hooks/useAudio';
 
-const WS_URL = process.env.NEXT_PUBLIC_API_WS_URL ?? 'ws://156.218.252.71:3001';
+const WS_URL = process.env.NEXT_PUBLIC_API_WS_URL ?? 'ws://localhost:3001';
 
 export default function LessonPage() {
     const [status, setStatus] = useState('loading');
