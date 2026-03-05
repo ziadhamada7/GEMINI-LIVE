@@ -198,12 +198,19 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             }
     }
 
-    function _scroll(ctx) {
+    function _scroll(ctx, forceShift = 0) {
         const c = cursorRef.current;
-        if (c.maxY > height - 80) {
-            const shift = 130;
+        if (c.maxY > height - 80 || forceShift > 0) {
+            const shift = forceShift > 0 ? forceShift : 130;
             const dpr = window.devicePixelRatio || 1;
-            const img = ctx.getImageData(0, shift * dpr, width * dpr, (height - shift) * dpr);
+
+            // Safari/Firefox throw errors on non-integer bounds for getImageData
+            const sx = 0;
+            const sy = Math.floor(shift * dpr);
+            const sw = Math.floor(width * dpr);
+            const sh = Math.floor((height - shift) * dpr);
+
+            const img = ctx.getImageData(sx, sy, sw, sh);
 
             ctx.fillStyle = C.bg;
             ctx.fillRect(0, 0, width, height);
@@ -1243,85 +1250,90 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             // ── IMAGE ────────────────────────────────────────────────────────
             case 'image': {
                 if (!cmd.dataUrl) break;
+                // Allow larger images, minus some padding
                 const maxImgW = maxW - 20;
-                const maxImgH = 180;
-                c.y += 8;
+                const maxImgH = 260;
+                c.y += 24; // Ensure we don't overlap previous blocks
 
                 await new Promise((resolve) => {
                     const img = new Image();
                     img.onload = () => {
-                        // Calculate size maintaining aspect ratio
                         let iw = img.width, ih = img.height;
                         const scale = Math.min(maxImgW / iw, maxImgH / ih, 1);
                         iw = Math.round(iw * scale);
                         ih = Math.round(ih * scale);
 
-                        // Fade-in animation
+                        const gCtx = canvasRef.current.getContext('2d');
+                        const padding = 10;
+                        const pbom = cmd.caption ? 36 : 14;
+
+                        // Prevent drawing off-screen by pre-scrolling
+                        const totalNeededH = ih + padding + pbom + 40;
+                        if (c.y + totalNeededH > height) {
+                            const shift = (c.y + totalNeededH) - height + 40;
+                            cursorRef.current.maxY = Math.max(cursorRef.current.maxY, c.y);
+                            _scroll(gCtx, shift);
+                            c.y -= shift;
+                        }
+
                         let opacity = 0;
+                        let drawnFrame = false;
+
                         const fadeIn = () => {
-                            if (!canvasRef.current) { resolve(); return; }
-                            opacity += 0.06;
+                            if (!canvasRef.current || frozenRef.current) { resolve(); return; }
+
+                            opacity += 0.08;
                             if (opacity > 1) opacity = 1;
-                            const gCtx = canvasRef.current.getContext('2d');
+
+                            // Center horizontally in its column
+                            const ix = c.x + (maxImgW - iw) / 2;
+                            const iy = c.y;
+
                             gCtx.save();
                             gCtx.globalAlpha = opacity;
 
-                            // Shadow
-                            gCtx.shadowColor = 'rgba(0,0,0,0.4)';
-                            gCtx.shadowBlur = 10;
-                            gCtx.shadowOffsetY = 4;
+                            // 1. Draw Photo Paper / Polaroid Background
+                            gCtx.shadowColor = 'rgba(0,0,0,0.3)';
+                            gCtx.shadowBlur = 12;
+                            gCtx.shadowOffsetY = 6;
+                            gCtx.fillStyle = '#ffffff';
+                            gCtx.fillRect(ix - padding, iy - padding, iw + padding * 2, ih + padding + pbom);
 
-                            // Rounded rectangle clip
-                            const r = 8;
-                            const ix = c.x, iy = c.y;
-                            gCtx.beginPath();
-                            gCtx.moveTo(ix + r, iy);
-                            gCtx.lineTo(ix + iw - r, iy);
-                            gCtx.quadraticCurveTo(ix + iw, iy, ix + iw, iy + r);
-                            gCtx.lineTo(ix + iw, iy + ih - r);
-                            gCtx.quadraticCurveTo(ix + iw, iy + ih, ix + iw - r, iy + ih);
-                            gCtx.lineTo(ix + r, iy + ih);
-                            gCtx.quadraticCurveTo(ix, iy + ih, ix, iy + ih - r);
-                            gCtx.lineTo(ix, iy + r);
-                            gCtx.quadraticCurveTo(ix, iy, ix + r, iy);
-                            gCtx.closePath();
-                            gCtx.clip();
+                            gCtx.shadowColor = 'transparent';
+
+                            // 2. Draw Image
                             gCtx.drawImage(img, ix, iy, iw, ih);
+
+                            // 3. Inner border holding the picture
+                            gCtx.strokeStyle = 'rgba(0,0,0,0.08)';
+                            gCtx.lineWidth = 1;
+                            gCtx.strokeRect(ix, iy, iw, ih);
+
+                            // 4. "Tape" stuck to the top center
+                            gCtx.fillStyle = 'rgba(235, 230, 180, 0.75)'; // Transparent yellowish masking tape
+                            gCtx.rotate(-0.02); // slight rotation for tape
+                            gCtx.fillRect(ix + iw / 2 - 30, iy - padding - 8, 60, 22);
+                            gCtx.rotate(0.02); // restore
+
+                            // 5. Draw Caption centered at the bottom of the polaroid
+                            if (cmd.caption) {
+                                gCtx.font = F.label;
+                                gCtx.fillStyle = '#444';
+                                gCtx.textAlign = 'center';
+                                gCtx.fillText(cmd.caption, ix + iw / 2, iy + ih + 22);
+                                gCtx.textAlign = 'left';
+                            }
+
                             gCtx.restore();
 
                             if (opacity < 1) {
                                 requestAnimationFrame(fadeIn);
                             } else {
-                                // Draw border
-                                gCtx.strokeStyle = 'rgba(96,165,250,0.3)';
-                                gCtx.lineWidth = 1.5;
-                                gCtx.beginPath();
-                                gCtx.moveTo(c.x + r, c.y);
-                                gCtx.lineTo(c.x + iw - r, c.y);
-                                gCtx.quadraticCurveTo(c.x + iw, c.y, c.x + iw, c.y + r);
-                                gCtx.lineTo(c.x + iw, c.y + ih - r);
-                                gCtx.quadraticCurveTo(c.x + iw, c.y + ih, c.x + iw - r, c.y + ih);
-                                gCtx.lineTo(c.x + r, c.y + ih);
-                                gCtx.quadraticCurveTo(c.x, c.y + ih, c.x, c.y + ih - r);
-                                gCtx.lineTo(c.x, c.y + r);
-                                gCtx.quadraticCurveTo(c.x, c.y, c.x + r, c.y);
-                                gCtx.closePath();
-                                gCtx.stroke();
-
-                                c.y += ih + 6;
-
-                                // Caption
-                                if (cmd.caption) {
-                                    gCtx.font = F.label;
-                                    gCtx.fillStyle = C.muted;
-                                    gCtx.fillText(cmd.caption, c.x, c.y + 10);
-                                    c.y += 18;
-                                }
-
+                                c.y += totalNeededH;
                                 resolve();
                             }
                         };
-                        requestAnimationFrame(fadeIn);
+                        fadeIn();
                     };
                     img.onerror = () => {
                         console.warn('[Whiteboard] Failed to load image');
@@ -1329,7 +1341,6 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                     };
                     img.src = cmd.dataUrl;
                 });
-                c.y += 8;
                 break;
             }
 
