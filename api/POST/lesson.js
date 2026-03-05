@@ -79,57 +79,63 @@ async function parseMultipart(req) {
 }
 
 /**
- * Extract text from PDF buffer using pdf-parse.
- */
-async function extractPdfText(buffer) {
-    try {
-        const pdfParse = (await import('pdf-parse')).default;
-        const result = await pdfParse(buffer);
-        return result.text || '';
-    } catch (err) {
-        console.error('[POST/lesson] PDF parse error:', err.message);
-        return '';
-    }
-}
-
-/**
  * POST /lesson handler
  */
 export default async function handler(req, res) {
     try {
         // Parse the incoming request
         const { fields, files } = await parseMultipart(req);
-        const topic = fields.topic?.trim();
+        let topic = fields.topic?.trim() || '';
 
-        if (!topic) {
-            res.json({ error: 'Missing "topic" field' }, 400);
-            return;
-        }
+        // Separate PDF files (sent as inline data to Gemini) from text files
+        const pdfParts = [];   // { inlineData: { mimeType, data } }
+        let sourceText = '';   // text extracted from non-PDF files
 
-        console.log(`[POST/lesson] Topic: "${topic}", Files: ${files.length}`);
-
-        // Extract text from uploaded files
-        let sourceText = '';
         for (const file of files) {
             if (file.name.toLowerCase().endsWith('.pdf')) {
-                const text = await extractPdfText(file.data);
-                sourceText += `\n--- ${file.name} ---\n${text}\n`;
+                console.log(`[POST/lesson] Attaching PDF for Gemini: ${file.name} (${file.data.length} bytes)`);
+                pdfParts.push({
+                    inlineData: {
+                        mimeType: 'application/pdf',
+                        data: file.data.toString('base64'),
+                    },
+                });
+
+                // If no topic was provided, use the first PDF's filename without extension
+                if (!topic) {
+                    topic = file.name.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ');
+                    console.log(`[POST/lesson] Derived topic from PDF: "${topic}"`);
+                }
             } else {
                 // Plain text / other
                 sourceText += `\n--- ${file.name} ---\n${file.data.toString('utf-8')}\n`;
             }
         }
 
-        // Build the lesson plan prompt
-        const prompt = buildLessonPlanPrompt(topic, sourceText);
+        if (!topic && files.length === 0) {
+            res.json({ error: 'Missing "topic" field and no files uploaded' }, 400);
+            return;
+        }
 
-        // Call Gemini text model to generate the lesson plan
-        console.log('[POST/lesson] Generating lesson plan...');
+        console.log(`[POST/lesson] Topic: "${topic}", PDFs: ${pdfParts.length}, Text files length: ${sourceText.length} chars`);
+
+        // Build the lesson plan prompt text
+        const hasPdfAttachments = pdfParts.length > 0;
+        const promptText = buildLessonPlanPrompt(topic, sourceText, hasPdfAttachments);
+
+        // Build multimodal contents: PDF parts + text prompt
+        const contents = [
+            ...pdfParts,
+            { text: promptText },
+        ];
+
+        // Call Gemini model to generate the lesson plan
+        console.log(`[POST/lesson] Generating lesson plan (${hasPdfAttachments ? 'with PDF attachments' : 'text only'})...`);
         let result;
         try {
             result = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: prompt,
+                contents: contents,
                 config: {
                     responseMimeType: 'application/json',
                     temperature: 0.7,

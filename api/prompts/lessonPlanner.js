@@ -9,10 +9,35 @@
  * Speech + draw fire SIMULTANEOUSLY for perfect sync.
  */
 
-export function buildLessonPlanPrompt(topic, sourceText) {
-  const material = sourceText?.trim()
-    ? `\n\nSource material:\n"""\n${sourceText.slice(0, 30000)}\n"""\nCover ALL key concepts from this material.`
-    : '';
+export function buildLessonPlanPrompt(topic, sourceText, hasPdfAttachments = false) {
+  let material = '';
+
+  if (hasPdfAttachments) {
+    // PDFs are attached as inline data — Gemini reads them directly
+    const extraTextNote = sourceText?.trim()
+      ? `\n\nAdditionally, the following text files were provided:\n"""\n${sourceText.slice(0, 30000)}\n"""`
+      : '';
+    material = `\n\n========== CRITICAL SOURCE MATERIAL ==========
+🚨 PDF document(s) are attached to this message as inline data. READ THEM DIRECTLY.${extraTextNote}
+==============================================
+
+🚨 CRITICAL RULES FOR SOURCE MATERIAL:
+1. You MUST build this entire lesson STRICTLY and EXCLUSIVELY based on the attached PDF document(s).
+2. Your absolute primary goal is to teach the EXACT CONTENT of these documents to the student.
+3. DO NOT invent general knowledge, hallucinate concepts, or pull in outside information. 
+4. Extract the exact definitions, specific examples, and structural arguments directly from the PDF(s).
+5. If a concept is not mentioned in the source material, DO NOT teach it.
+6. Adapt the whiteboard drawings to visually represent the hierarchies, data, or processes described in the documents.`;
+  } else if (sourceText?.trim()) {
+    material = `\n\n========== CRITICAL SOURCE MATERIAL ==========\n"""\n${sourceText.slice(0, 45000)}\n"""\n==============================================\n
+🚨 CRITICAL RULES FOR SOURCE MATERIAL:
+1. You MUST build this entire lesson STRICTLY and EXCLUSIVELY based on the provided Source Material above.
+2. Your absolute primary goal is to teach THIS EXACT DOCUMENT to the student.
+3. DO NOT invent general knowledge, hallucinate concepts, or pull in outside information. 
+4. Extract the exact definitions, specific examples, and structural arguments directly from the text provided.
+5. If a concept is not mentioned in the source material, DO NOT teach it.
+6. Adapt the whiteboard drawings to visually represent the hierarchies, data, or processes described in the text.`;
+  }
 
   return `You are designing a world-class, highly structured academic whiteboard lesson on "${topic}".${material}
 
