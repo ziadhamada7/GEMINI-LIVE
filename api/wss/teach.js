@@ -55,6 +55,7 @@ class TeachingSession {
 
         // Section skip
         this._skipToSection = -1;
+        this._skipToStep = -1;
     }
 
     setState(s) {
@@ -146,7 +147,60 @@ class TeachingSession {
         return new Promise(resolve => { this._pauseResolve = resolve; });
     }
 
-    // ── Section Skip ──────────────────────────────────────────────────────
+    // ── Navigation (Step / Section) ───────────────────────────────────────
+    handleNavigate(dirStep, dirSection) {
+        if (!this.plan || this.shouldStop) return;
+
+        let targetSec = this._skipToSection >= 0 ? this._skipToSection : this.sectionIdx;
+        let targetStep = this._skipToStep >= 0 ? this._skipToStep : this.segmentIdx;
+        const currentSec = this.plan.sections[targetSec];
+        const speechStepsLength = currentSec?.steps?.filter(s => s.cmd?.cmd !== 'quiz').length || 0;
+
+        if (dirSection !== 0) {
+            targetSec += dirSection;
+            targetStep = 0;
+        } else if (dirStep !== 0) {
+            targetStep += dirStep;
+            // Navigate across sections if out of bounds
+            if (targetStep >= speechStepsLength) {
+                targetSec += 1;
+                targetStep = 0;
+            } else if (targetStep < 0) {
+                targetSec -= 1;
+                if (targetSec >= 0) {
+                    const prevSec = this.plan.sections[targetSec];
+                    const prevSpeechStepsLength = prevSec?.steps?.filter(s => s.cmd?.cmd !== 'quiz').length || 0;
+                    targetStep = Math.max(0, prevSpeechStepsLength - 1);
+                }
+            }
+        }
+
+        // Clamp boundaries
+        if (targetSec < 0) {
+            targetSec = 0;
+            targetStep = 0;
+        } else if (targetSec >= this.plan.sections.length) {
+            return; // Don't skip past end
+        }
+
+        console.log(`[teach] NAVIGATE to section ${targetSec + 1}, step ${targetStep + 1}`);
+
+        if (targetSec === this.sectionIdx) {
+            this._skipToSection = -1;
+            this._skipToStep = targetStep;
+        } else {
+            this._skipToSection = targetSec;
+            this._skipToStep = targetStep;
+        }
+
+        this._paused = false;
+        this._pauseResolve?.();
+        this._interrupted = true;
+        this._closeSectionSession();
+        this._closeQA();
+        this._pendingResume?.();
+    }
+
     handleSkipSection(targetIdx) {
         if (!this.plan || this.shouldStop) return;
         const idx = Number(targetIdx);
@@ -164,42 +218,72 @@ class TeachingSession {
     // ═══════════════════════════════════════════════════════════════════════
     //  LESSON FLOW
     // ═══════════════════════════════════════════════════════════════════════
-    async startLesson(rawPlan, language = 'en') {
+    async startLesson(rawPlan, language = 'en', voice = 'Puck') {
         const v = validateLessonPlan(rawPlan);
         if (!v.success) { send(this.ws, { type: 'error', data: v.error }); return; }
         this.plan = v.plan;
         this.language = language || 'en';
-        console.log(`[teach] Plan: "${this.plan.title}" — ${this.plan.sections.length} sections, Language: ${this.language}`);
+        this.voice = voice || 'Puck';
+        console.log(`[teach] Plan: "${this.plan.title}" — ${this.plan.sections.length} sections, Language: ${this.language}, Voice: ${this.voice}`);
 
         let i = 0;
         while (i < this.plan.sections.length) {
             if (this.shouldStop || this.ws.readyState !== 1) break;
 
+            let startStep = 0;
+            let backwardsNav = false;
+            let sameSection = false;
+            let stepsToUndo = 0;
+
             // Handle section skip
             if (this._skipToSection >= 0) {
                 i = this._skipToSection;
+                startStep = Math.max(0, this._skipToStep || 0);
                 this._skipToSection = -1;
+                this._skipToStep = -1;
                 this._interrupted = false;
                 this.drawnSegments.clear();
+            } else if (this._skipToStep >= 0) {
+                // Navigating within the same section
+                sameSection = true;
+                if (this._skipToStep < this.segmentIdx) {
+                    backwardsNav = true;
+                    let undoCount = 0;
+                    for (let j = this.segmentIdx; j >= this._skipToStep; j--) {
+                        if (this.drawnSegments.has(`S${this.sectionIdx}_${j}`)) {
+                            this.drawnSegments.delete(`S${this.sectionIdx}_${j}`);
+                            undoCount++;
+                        }
+                    }
+                    stepsToUndo = undoCount;
+                }
+                startStep = this._skipToStep;
+                this._skipToStep = -1;
+                this._interrupted = false;
             }
 
             this.sectionIdx = i;
             const sec = this.plan.sections[i];
 
-            console.log(`[teach] ── Section ${i + 1}/${this.plan.sections.length}: "${sec.title}" (${sec.steps.length} steps)`);
-            send(this.ws, { type: 'section', data: { index: i + 1, title: sec.title, total: this.plan.sections.length } });
-            send(this.ws, { type: 'draw', commands: [{ cmd: 'clear' }] });
-            if (i > 0) await sleep(400);
+            if (!sameSection) {
+                console.log(`[teach] ── Section ${i + 1}/${this.plan.sections.length}: "${sec.title}" (${sec.steps.length} steps)`);
+                send(this.ws, { type: 'section', data: { index: i + 1, title: sec.title, total: this.plan.sections.length } });
+                send(this.ws, { type: 'draw', commands: [{ cmd: 'clear' }] });
+                if (i > 0) await sleep(400);
+            } else if (backwardsNav && stepsToUndo > 0) {
+                send(this.ws, { type: 'draw', commands: [{ cmd: 'undo', steps: stepsToUndo }], animMs: 0 });
+                await sleep(50);
+            }
 
             // Separate quiz steps from speech/draw steps
             const speechSteps = sec.steps.filter(s => s.cmd?.cmd !== 'quiz');
             const quizSteps = sec.steps.filter(s => s.cmd?.cmd === 'quiz');
 
             this.setState(S.TEACHING);
-            await this._runSection(speechSteps, sec.title);
+            await this._runSection(speechSteps, sec.title, startStep);
 
             if (this.shouldStop) break;
-            if (this._skipToSection >= 0) continue; // skip was requested during section
+            if (this._skipToSection >= 0 || this._skipToStep >= 0) continue; // skip was requested during section
 
             for (const qs of quizSteps) {
                 if (this.shouldStop) break;
@@ -216,11 +300,34 @@ class TeachingSession {
     }
 
     // ── Run section: iterate steps with simultaneous draw+speech ──────────
-    async _runSection(steps, sectionTitle) {
+    async _runSection(steps, sectionTitle, initialStartStep = 0) {
         if (this.shouldStop) return;
         const sys = buildVoiceSystemInstruction(sectionTitle, this.language);
 
-        let startFrom = 0;
+        let startFrom = initialStartStep;
+
+        // Fast-forward drawings if starting mid-section
+        if (initialStartStep > 0 && !this.shouldStop) {
+            console.log(`[teach] Fast-forwarding drawings up to step ${initialStartStep}`);
+            let fastDrawCmds = [];
+            for (let j = 0; j < initialStartStep; j++) {
+                const st = steps[j];
+                const stepId = `S${this.sectionIdx}_${j}`;
+                if (st.cmd && !this.drawnSegments.has(stepId)) {
+                    // pre-fetch images if any
+                    if (st.cmd.cmd === 'image' && st.cmd.query) {
+                        const dataUrl = await fetchImage(st.cmd.query);
+                        if (dataUrl) st.cmd.dataUrl = dataUrl;
+                    }
+                    if (st.cmd) fastDrawCmds.push(st.cmd);
+                    this.drawnSegments.add(stepId);
+                }
+            }
+            if (fastDrawCmds.length > 0) {
+                send(this.ws, { type: 'draw', commands: fastDrawCmds, animMs: 0 }); // instant draw
+                await sleep(50); // fast sleep to prevent delay
+            }
+        }
 
         // Outer loop: re-opens session after each resume
         while (startFrom < steps.length && !this.shouldStop) {
@@ -232,10 +339,10 @@ class TeachingSession {
             let interrupted = false;
 
             // Inner loop: execute each step
-            while (si < steps.length && !this.shouldStop && this._sectionSession && this._skipToSection < 0) {
+            while (si < steps.length && !this.shouldStop && this._sectionSession && this._skipToSection < 0 && this._skipToStep < 0) {
                 // ── Pause gate ────────────────────────────────────────────
                 await this._waitIfPaused();
-                if (this.shouldStop || this._skipToSection >= 0) break;
+                if (this.shouldStop || this._skipToSection >= 0 || this._skipToStep >= 0) break;
 
                 this.segmentIdx = si;
                 const step = steps[si];
@@ -295,8 +402,8 @@ class TeachingSession {
             }
             if (this.shouldStop) break;
 
-            // If we broke out because of a section skip, stop trying to resume this section
-            if (this._skipToSection >= 0) break;
+            // If we broke out because of a skip, stop trying to resume this section
+            if (this._skipToSection >= 0 || this._skipToStep >= 0) break;
 
             if (interrupted) {
                 this._closeSectionSession();
@@ -332,12 +439,23 @@ class TeachingSession {
                 resolve(true);
             };
 
+            const requestConfig = {
+                responseModalities: [Modality.AUDIO],
+                systemInstruction: { parts: [{ text: sysPrompt }] },
+            };
+            if (this.voice) {
+                requestConfig.speechConfig = {
+                    voiceConfig: {
+                        prebuiltVoiceConfig: {
+                            voiceName: this.voice
+                        }
+                    }
+                };
+            }
+
             ai.live.connect({
                 model: MODEL,
-                config: {
-                    responseModalities: [Modality.AUDIO],
-                    systemInstruction: { parts: [{ text: sysPrompt }] },
-                },
+                config: requestConfig,
                 callbacks: {
                     onopen: () => { console.log('[teach] Section WS open'); },
                     onmessage: (msg) => {
@@ -495,9 +613,23 @@ class TeachingSession {
             let sessionObj = null;
             let setupDone = false;
 
+            const requestConfig = {
+                responseModalities: [Modality.AUDIO],
+                systemInstruction: { parts: [{ text: sys }] }
+            };
+            if (this.voice) {
+                requestConfig.speechConfig = {
+                    voiceConfig: {
+                        prebuiltVoiceConfig: {
+                            voiceName: this.voice
+                        }
+                    }
+                };
+            }
+
             const session = await ai.live.connect({
                 model: MODEL,
-                config: { responseModalities: [Modality.AUDIO], systemInstruction: { parts: [{ text: sys }] } },
+                config: requestConfig,
                 callbacks: {
                     onopen: () => { },
                     onmessage: (msg) => {
@@ -600,13 +732,14 @@ export default async function handler(ws) {
         let msg;
         try { msg = JSON.parse(raw.toString()); } catch { return; }
         switch (msg.type) {
-            case 'start': if (msg.lessonPlan) s.startLesson(msg.lessonPlan, msg.language).catch(e => { console.error('[teach]', e); send(ws, { type: 'error', data: e.message }); }); break;
+            case 'start': if (msg.lessonPlan) s.startLesson(msg.lessonPlan, msg.language, msg.voice).catch(e => { console.error('[teach]', e); send(ws, { type: 'error', data: e.message }); }); break;
             case 'mic_on': s.handleMicOn(); break;
             case 'audio': s.handleStudentAudio(msg.data, msg.mimeType ?? 'audio/pcm;rate=16000'); break;
             case 'mic_off': s.handleMicOff(); break;
             case 'resume': s.handleResume(); break;
             case 'pause': s.handlePause(); break;
             case 'play': s.handlePlay(); break;
+            case 'navigate': s.handleNavigate(msg.dirStep || 0, msg.dirSection || 0); break;
             case 'skip_section': s.handleSkipSection(msg.index); break;
             case 'stop': s.stop(); break;
             case 'quiz_answer': s.handleQuizAnswer(msg.answer); break;
