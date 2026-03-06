@@ -125,6 +125,18 @@ function sketchLine(ctx, x1, y1, x2, y2, color, lw = 1.5, wobble = 3) {
 // ─── Animated sketchy stroke via RAF ─────────────────────────────────────────
 function animSketch(ctx, x1, y1, x2, y2, color, lw, wobble, durMs) {
     return new Promise(resolve => {
+        if (durMs <= 0) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lw;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x1 + jitter(0.5), y1 + jitter(0.5));
+            ctx.lineTo(x2 + jitter(0.5), y2 + jitter(0.5));
+            ctx.stroke();
+            resolve();
+            return;
+        }
         const dx = x2 - x1, dy = y2 - y1;
         const dist = Math.hypot(dx, dy);
         const steps = Math.max(2, Math.ceil(dist / 10));
@@ -173,6 +185,16 @@ function animSketch(ctx, x1, y1, x2, y2, color, lw, wobble, durMs) {
 // ─── Animated arc ─────────────────────────────────────────────────────────────
 function animArc(ctx, cx, cy, r, color, lw, durMs) {
     return new Promise(resolve => {
+        if (durMs <= 0) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lw;
+            ctx.lineCap = 'round';
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.stroke();
+            resolve();
+            return;
+        }
         const start = performance.now();
         const safeDur = Math.max(1, durMs || 100);
         let lastAngle = -Math.PI / 2 + jitter(0.05);
@@ -202,6 +224,13 @@ function animArc(ctx, cx, cy, r, color, lw, durMs) {
 
 // ─── Sketchy rect (4 animated sides) ────────────────────────────────────────
 async function animRect(ctx, x, y, w, h, color, lw, durMs) {
+    if (durMs <= 0) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lw;
+        ctx.lineJoin = 'round';
+        ctx.strokeRect(x, y, w, h);
+        return;
+    }
     const segDur = durMs / 4;
     await animSketch(ctx, x + jitter(2), y + jitter(2), x + w + jitter(2), y + jitter(2), color, lw, 2, segDur);
     await animSketch(ctx, x + w + jitter(2), y + jitter(2), x + w + jitter(2), y + h + jitter(2), color, lw, 2, segDur);
@@ -230,6 +259,7 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
     const canvasRef = useRef(null);
     const cursorRef = useRef({ x: 44, y: 58 });
     const animQueueRef = useRef([]);
+    const historyRef = useRef([]);
     const isAnimatingRef = useRef(false);
     const frozenRef = useRef(false);
 
@@ -249,6 +279,7 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
     function _clear(ctx) {
         seed = 42;
         cursorRef.current = { yL: 58, yR: 58, maxY: 58 };
+        historyRef.current = [];
         ctx.fillStyle = C.bg;
         ctx.fillRect(0, 0, width, height);
         ctx.fillStyle = C.dot;
@@ -298,6 +329,22 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
     function _handwrite(ctx, text, x, y, font, color, durationMs, rtl = false) {
         return new Promise(resolve => {
             if (!text) { resolve(); return; }
+
+            if (durationMs <= 0) {
+                ctx.font = font;
+                ctx.fillStyle = color;
+                if (rtl) {
+                    ctx.direction = 'rtl';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(text, x, y);
+                    ctx.textAlign = 'left';
+                    ctx.direction = 'ltr';
+                } else {
+                    ctx.fillText(text, x, y);
+                }
+                resolve();
+                return;
+            }
 
             const hasAr = _hasArabic(text);
 
@@ -444,8 +491,16 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
         // Simple LCG for consistent jitter between commands
         seed = (seed * 16807) % 2147483647;
 
+        if (cmd.cmd !== 'clear' && cmd.cmd !== 'undo') {
+            historyRef.current.push({
+                imgData: ctx.getImageData(0, 0, width * (window.devicePixelRatio || 1), height * (window.devicePixelRatio || 1)),
+                cursor: { ...globalC }
+            });
+            if (historyRef.current.length > 50) historyRef.current.shift();
+        }
+
         const isRight = cmd.col === 'right';
-        const isFull = ['title', 'divider', 'newline', 'clear', 'summary'].includes(cmd.cmd);
+        const isFull = ['title', 'divider', 'newline', 'clear', 'undo', 'summary'].includes(cmd.cmd);
 
         const startX = isRight && !isFull ? width / 2 + 20 : 44;
         const startY = isFull ? globalC.maxY : (isRight ? globalC.yR : globalC.yL);
@@ -454,6 +509,25 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
         const c = { x: startX, y: startY };
 
         switch (cmd.cmd) {
+
+            // ── CLEAR ────────────────────────────────────────────────────────
+            case 'clear': {
+                _clear(ctx);
+                break;
+            }
+
+            // ── UNDO ─────────────────────────────────────────────────────────
+            case 'undo': {
+                const steps = cmd.steps || 1;
+                for (let i = 0; i < steps; i++) {
+                    if (historyRef.current.length > 0) {
+                        const state = historyRef.current.pop();
+                        ctx.putImageData(state.imgData, 0, 0);
+                        Object.assign(globalC, state.cursor);
+                    }
+                }
+                break;
+            }
 
             // ── TITLE ────────────────────────────────────────────────────────
             case 'title': {
@@ -1729,7 +1803,7 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             default: break;
         }
 
-        if (cmd.cmd !== 'clear') {
+        if (cmd.cmd !== 'clear' && cmd.cmd !== 'undo') {
             if (isFull) {
                 globalC.yL = c.y; globalC.yR = c.y; globalC.maxY = c.y;
             } else {
