@@ -86,6 +86,7 @@ export default async function handler(req, res) {
         // Parse the incoming request
         const { fields, files } = await parseMultipart(req);
         let topic = fields.topic?.trim() || '';
+        const language = fields.language?.trim() || 'en';
 
         // Separate PDF files (sent as inline data to Gemini) from text files
         const pdfParts = [];   // { inlineData: { mimeType, data } }
@@ -117,11 +118,11 @@ export default async function handler(req, res) {
             return;
         }
 
-        console.log(`[POST/lesson] Topic: "${topic}", PDFs: ${pdfParts.length}, Text files length: ${sourceText.length} chars`);
+        console.log(`[POST/lesson] Topic: "${topic}", PDFs: ${pdfParts.length}, Text files length: ${sourceText.length} chars, Language: ${language}`);
 
         // Build the lesson plan prompt text
         const hasPdfAttachments = pdfParts.length > 0;
-        const promptText = buildLessonPlanPrompt(topic, sourceText, hasPdfAttachments);
+        const promptText = buildLessonPlanPrompt(topic, sourceText, hasPdfAttachments, language);
 
         // Build multimodal contents: PDF parts + text prompt
         const contents = [
@@ -246,6 +247,7 @@ export default async function handler(req, res) {
         res.json({
             lessonId,
             plan,
+            language,
         });
     } catch (err) {
         console.error('[POST/lesson] Error:', err);

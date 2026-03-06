@@ -9,7 +9,20 @@
  * Speech + draw fire SIMULTANEOUSLY for perfect sync.
  */
 
-export function buildLessonPlanPrompt(topic, sourceText, hasPdfAttachments = false) {
+// Language display name mapping for prompt instructions
+const LANG_NAMES = {
+  'en': 'English',
+  'ar-eg': 'Egyptian Arabic (اللهجة المصرية)',
+  'ar-sa': 'Saudi Arabic (اللهجة السعودية)',
+  'fr': 'French',
+  'es': 'Spanish',
+  'de': 'German',
+};
+
+export function buildLessonPlanPrompt(topic, sourceText, hasPdfAttachments = false, language = 'en') {
+  const langName = LANG_NAMES[language] || 'English';
+  const isArabic = language.startsWith('ar');
+
   let material = '';
 
   if (hasPdfAttachments) {
@@ -165,10 +178,35 @@ Generate a lesson plan as **valid JSON** using the STEPS format below.
 - Use a diverse mix of commands — never more than 3 of the same type in a row.
 - graph "type" must be one of: "direct", "inverse", "exponential", "quadratic", "bell".
 
+## LANGUAGE
+
+- The "speech" field in each step MUST be written in ${langName}.
+- The "title" field and section "title" fields MUST also be in ${langName}.
+- The "summary" field MUST be in ${langName}.
+${isArabic ? `- Keep technical/scientific English terms in English (e.g. DNA, photosynthesis formula variables like ΔU, Q, W). Do NOT transliterate them into Arabic.
+- Mix Arabic and English naturally: write the explanation in Arabic but keep formulas, variable names, and well-known English terms as-is.` : language !== 'en' ? `- Keep technical/scientific English terms in English where appropriate (e.g. DNA, variables like ΔU, Q, W). Use the target language for explanations.` : ''}
+- The "cmd" fields (draw commands) should remain in English for the whiteboard renderer. Only "speech", "title", and "summary" fields need to be in ${langName}.
+- Quiz "question" and "options" MUST be in ${langName}.
+
 Output ONLY valid JSON. No markdown fences.`;
 }
 
-export function buildVoiceSystemInstruction(sectionTitle) {
+export function buildVoiceSystemInstruction(sectionTitle, language = 'en') {
+  const langName = LANG_NAMES[language] || 'English';
+  const isArabic = language.startsWith('ar');
+
+  let langDirective = '';
+  if (language !== 'en') {
+    if (isArabic) {
+      const dialectExamples = language === 'ar-eg'
+        ? `Use Egyptian colloquial Arabic (عامية مصرية) ONLY. Use words like: "ده", "دي", "كده", "عشان", "يعني", "ازاي", "مش", "خلينا", "بتاع", "طبعاً". NEVER use formal/classical Arabic (فصحى). Speak EXACTLY like an Egyptian university professor would speak in a casual lecture — NOT like a news anchor.`
+        : `Use Saudi colloquial Arabic (عامية سعودية) ONLY. Use words like: "هذا", "كذا", "حق", "وش", "يعني", "ليش", "زين", "إيش". NEVER use formal/classical Arabic (فصحى). Speak EXACTLY like a Saudi professor would speak in a natural lecture.`;
+      langDirective = `\n\nLANGUAGE RULES (CRITICAL):\n- You MUST speak ENTIRELY in ${langName}. This is the #1 most important rule.\n- ${dialectExamples}\n- Keep scientific/technical English terms in English (e.g. DNA, voltage, pH, Shopify). Do NOT translate or transliterate them.\n- When reading formulas or equations, say variable names in English but explain in ${langName}.`;
+    } else {
+      langDirective = `\n\nLANGUAGE RULES:\n- You MUST speak ENTIRELY in ${langName}. This is non-negotiable.\n- Speak naturally in ${langName} like a native professor.\n- Keep scientific/technical English terms in English when appropriate.`;
+    }
+  }
+
   return `You are a brilliant, world-class professor delivering a live lecture on "${sectionTitle}".
 
 You will receive TEACHING NOTES — short bullet points describing what to explain next.
@@ -177,25 +215,63 @@ BEHAVIOR:
 - EXPLAIN each teaching note naturally in your own words, like a real professor at a whiteboard.
 - Do NOT read the note verbatim. Transform it into natural spoken explanation.
 - Keep each explanation to 1-3 sentences (5-15 seconds of speech).
-- Use natural connectors: "This means...", "Notice that...", "The key idea here is...", "What this tells us is..."
+- Use natural connectors appropriate for ${langName}.
 - Be direct, confident, and enthusiastic about the subject.
-- NEVER use filler: "Alright", "Okay", "So", "Let's see", "As you can see".
+- NEVER use filler words. Be direct.
 - After explaining the note, STOP speaking and wait for the next one. Do NOT continue on your own.
 - You are giving a solo academic lecture. Do not ask the student questions mid-lecture.
-- Maintain consistent energy — do not trail off or mumble.`;
+- Maintain consistent energy — do not trail off or mumble.${langDirective}`;
 }
 
-export function buildQAInstruction(sectionTitle, lessonTitle) {
+export function buildQAInstruction(sectionTitle, lessonTitle, language = 'en') {
+  const langName = LANG_NAMES[language] || 'English';
+  const isArabic = language.startsWith('ar');
+
+  // Language-specific greeting phrases
+  const greetings = {
+    'en': 'Yes, go ahead.',
+    'ar-eg': 'أيوا، اتفضل اسأل.',
+    'ar-sa': 'تفضل، اسأل.',
+    'fr': 'Oui, allez-y.',
+    'es': 'Sí, adelante.',
+    'de': 'Ja, bitte fragen Sie.',
+  };
+  const clarify = {
+    'en': 'Does that clarify it?',
+    'ar-eg': 'كده واضح؟',
+    'ar-sa': 'واضح كذا؟',
+    'fr': 'Est-ce que c\'est plus clair ?',
+    'es': '¿Queda más claro?',
+    'de': 'Ist das jetzt klarer?',
+  };
+  const cont = {
+    'en': 'Great, let\'s continue.',
+    'ar-eg': 'تمام، يلا نكمل.',
+    'ar-sa': 'ممتاز، نكمل.',
+    'fr': 'Très bien, continuons.',
+    'es': 'Perfecto, continuemos.',
+    'de': 'Gut, machen wir weiter.',
+  };
+
+  const greeting = greetings[language] || greetings.en;
+  const clarifyText = clarify[language] || clarify.en;
+  const contText = cont[language] || cont.en;
+
+  let langDirective = '';
+  if (language !== 'en') {
+    langDirective = `\n\nLANGUAGE: You MUST speak ENTIRELY in ${langName}.${isArabic ? ` Use the ${language === 'ar-eg' ? 'Egyptian' : 'Saudi'} dialect. Keep technical English terms in English.` : ' Keep technical English terms in English when appropriate.'}`;
+  }
+
   return `You are a kind, patient professor teaching "${lessonTitle}".
 
 A student interrupted to ask a question.
 
 BEHAVIOR:
-1. When prompted to greet: say ONLY "Yes, go ahead." Then STOP.
+1. When prompted to greet: say ONLY "${greeting}" Then STOP.
 2. Answer clearly and structurally in 20-30 seconds max.
-3. NEVER use filler words like "Ah", "Uhm", "Okay". Be direct.
-4. After every answer, end with exactly: "Does that clarify it?" then STOP.
-5. If student says yes: say "Great, let's continue." then STOP.
+3. NEVER use filler words. Be direct.
+4. After every answer, end with exactly: "${clarifyText}" then STOP.
+5. If student says yes: say "${contText}" then STOP.
 
-Keep answers concise. You are resuming a structured lecture.`;
+Keep answers concise. You are resuming a structured lecture.${langDirective}`;
 }

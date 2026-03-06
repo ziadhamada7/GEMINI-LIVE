@@ -32,6 +32,7 @@ class TeachingSession {
         this.ws = ws;
         this.state = null;
         this.plan = null;
+        this.language = 'en';
         this.shouldStop = false;
         this.sectionIdx = 0;
         this.segmentIdx = 0;
@@ -163,11 +164,12 @@ class TeachingSession {
     // ═══════════════════════════════════════════════════════════════════════
     //  LESSON FLOW
     // ═══════════════════════════════════════════════════════════════════════
-    async startLesson(rawPlan) {
+    async startLesson(rawPlan, language = 'en') {
         const v = validateLessonPlan(rawPlan);
         if (!v.success) { send(this.ws, { type: 'error', data: v.error }); return; }
         this.plan = v.plan;
-        console.log(`[teach] Plan: "${this.plan.title}" — ${this.plan.sections.length} sections`);
+        this.language = language || 'en';
+        console.log(`[teach] Plan: "${this.plan.title}" — ${this.plan.sections.length} sections, Language: ${this.language}`);
 
         let i = 0;
         while (i < this.plan.sections.length) {
@@ -216,7 +218,7 @@ class TeachingSession {
     // ── Run section: iterate steps with simultaneous draw+speech ──────────
     async _runSection(steps, sectionTitle) {
         if (this.shouldStop) return;
-        const sys = buildVoiceSystemInstruction(sectionTitle);
+        const sys = buildVoiceSystemInstruction(sectionTitle, this.language);
 
         let startFrom = 0;
 
@@ -409,7 +411,13 @@ class TeachingSession {
             };
 
             // Wrap teaching note with directive so Gemini explains naturally
-            const prompt = `[TEACHING NOTE] ${text}\n\nExplain this concept naturally in 1-3 sentences. Then STOP.`;
+            let langSuffix = '';
+            if (this.language !== 'en') {
+                if (this.language === 'ar-eg') langSuffix = ' in Egyptian Arabic dialect (عامية مصرية — use ده/دي/كده/عشان/يعني)';
+                else if (this.language === 'ar-sa') langSuffix = ' in Saudi Arabic dialect (عامية سعودية — use هذا/كذا/وش/يعني/زين)';
+                else langSuffix = ` in ${this.language}`;
+            }
+            const prompt = `[TEACHING NOTE] ${text}\n\nExplain this concept naturally in 1-3 sentences${langSuffix}. Then STOP.`;
 
             try {
                 this._sectionSession.sendClientContent({
@@ -481,7 +489,7 @@ class TeachingSession {
     // ── Q&A ───────────────────────────────────────────────────────────────
     async _openQASession() {
         const sectionTitle = this.plan?.sections?.[this.sectionIdx]?.title || 'the topic';
-        const sys = buildQAInstruction(sectionTitle, this.plan?.title || 'the lesson');
+        const sys = buildQAInstruction(sectionTitle, this.plan?.title || 'the lesson', this.language);
         const currentConnectId = ++this.qaConnectId;
         try {
             let sessionObj = null;
@@ -499,8 +507,14 @@ class TeachingSession {
                             this._qaGreetingDone = false;
                             // Send greeting prompt
                             if (this.qaSession) {
+                                const greetPrompt = this.language.startsWith('ar')
+                                    ? `رحب بالطالب بلطف: "${this.language === 'ar-eg' ? 'اتفضل، اسأل سؤالك' : 'تفضل، اسأل'}" واوقف.`
+                                    : this.language === 'fr' ? 'Dites chaleureusement : "Allez-y, posez votre question." Puis arrêtez-vous.'
+                                        : this.language === 'es' ? 'Diga cálidamente: "Adelante, haz tu pregunta." Luego deténgase.'
+                                            : this.language === 'de' ? 'Sagen Sie warm: "Bitte, stellen Sie Ihre Frage." Dann stoppen Sie.'
+                                                : 'Say warmly: "Go ahead — what\'s your question?" Then stop and listen.';
                                 this.qaSession.sendClientContent({
-                                    turns: [{ role: 'user', parts: [{ text: 'Say warmly: "Go ahead — what\'s your question?" Then stop and listen.' }] }],
+                                    turns: [{ role: 'user', parts: [{ text: greetPrompt }] }],
                                     turnComplete: true,
                                 });
                             }
@@ -532,8 +546,14 @@ class TeachingSession {
             this.qaSession = session;
             // If setupComplete already fired, send greeting now
             if (setupDone && this.qaSession && !this._qaGreetingDone) {
+                const greetPrompt = this.language.startsWith('ar')
+                    ? `رحب بالطالب بلطف: "${this.language === 'ar-eg' ? 'اتفضل، اسأل سؤالك' : 'تفضل، اسأل'}" واوقف.`
+                    : this.language === 'fr' ? 'Dites chaleureusement : "Allez-y, posez votre question." Puis arrêtez-vous.'
+                        : this.language === 'es' ? 'Diga cálidamente: "Adelante, haz tu pregunta." Luego deténgase.'
+                            : this.language === 'de' ? 'Sagen Sie warm: "Bitte, stellen Sie Ihre Frage." Dann stoppen Sie.'
+                                : 'Say warmly: "Go ahead — what\'s your question?" Then stop and listen.';
                 this.qaSession.sendClientContent({
-                    turns: [{ role: 'user', parts: [{ text: 'Say warmly: "Go ahead — what\'s your question?" Then stop and listen.' }] }],
+                    turns: [{ role: 'user', parts: [{ text: greetPrompt }] }],
                     turnComplete: true,
                 });
             }
@@ -580,7 +600,7 @@ export default async function handler(ws) {
         let msg;
         try { msg = JSON.parse(raw.toString()); } catch { return; }
         switch (msg.type) {
-            case 'start': if (msg.lessonPlan) s.startLesson(msg.lessonPlan).catch(e => { console.error('[teach]', e); send(ws, { type: 'error', data: e.message }); }); break;
+            case 'start': if (msg.lessonPlan) s.startLesson(msg.lessonPlan, msg.language).catch(e => { console.error('[teach]', e); send(ws, { type: 'error', data: e.message }); }); break;
             case 'mic_on': s.handleMicOn(); break;
             case 'audio': s.handleStudentAudio(msg.data, msg.mimeType ?? 'audio/pcm;rate=16000'); break;
             case 'mic_off': s.handleMicOff(); break;
