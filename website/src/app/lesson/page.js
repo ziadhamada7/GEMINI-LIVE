@@ -3,10 +3,13 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import Whiteboard from '@/components/Whiteboard';
 import { useAudio } from '@/hooks/useAudio';
+import { useLanguage } from '@/i18n/LanguageContext';
+import { LANGUAGES } from '@/i18n/locales';
 
 const WS_URL = process.env.NEXT_PUBLIC_API_WS_URL ?? 'ws://localhost:3001';
 
 export default function LessonPage() {
+    const { t, lang, setLang } = useLanguage();
     const [status, setStatus] = useState('loading');
     const [section, setSection] = useState(null);
     const [errors, setErrors] = useState([]);
@@ -27,6 +30,7 @@ export default function LessonPage() {
     const transcriptRef = useRef(null);
     const retryTimerRef = useRef(null);
     const planRef = useRef(null);
+    const lessonLangRef = useRef(lang);
     const { enqueueItem, clearAudioQueue, startMic, stopMic, micActive, setGainValue } = useAudio();
 
     const addTranscript = useCallback((role, text) => {
@@ -61,7 +65,12 @@ export default function LessonPage() {
         ws.onopen = () => {
             console.log('[ws] Connected!');
             setErrors([]);
-            ws.send(JSON.stringify({ type: 'start', lessonPlan: plan }));
+            // Send lesson plan with language
+            ws.send(JSON.stringify({
+                type: 'start',
+                lessonPlan: plan,
+                language: lessonLangRef.current,
+            }));
         };
 
         ws.onmessage = (event) => {
@@ -144,9 +153,14 @@ export default function LessonPage() {
     // ── Mount ─────────────────────────────────────────────────────────────
     useEffect(() => {
         const planJson = sessionStorage.getItem('lessonPlan');
+        const savedLang = sessionStorage.getItem('lessonLang');
+        if (savedLang && LANGUAGES[savedLang]) {
+            setLang(savedLang);
+            lessonLangRef.current = savedLang;
+        }
         if (!planJson) {
             setStatus('error');
-            setErrors([{ id: 1, text: 'No lesson plan found. Go back and create one.' }]);
+            setErrors([{ id: 1, text: t('lesson.noplan') }]);
             return;
         }
         try {
@@ -260,11 +274,11 @@ export default function LessonPage() {
 
     // ── Derived UI state ──────────────────────────────────────────────────
     const statusLabels = {
-        loading: '⏳ Connecting…', idle: 'Ready', teaching: '🎓 Teaching',
-        paused: '⏸ Paused',
-        listening: '👂 Listening…', answering: '💬 Answering…',
-        confirming: '🤔 Your turn…', stopped: '⏹ Stopped',
-        finished: '✅ Complete', error: '⚠ Error', disconnected: '🔌 Disconnected',
+        loading: t('status.loading'), idle: t('status.idle'), teaching: t('status.teaching'),
+        paused: t('status.paused'),
+        listening: t('status.listening'), answering: t('status.answering'),
+        confirming: t('status.confirming'), stopped: t('status.stopped'),
+        finished: t('status.finished'), error: t('status.error'), disconnected: t('status.disconnected'),
     };
 
     const isTerminal = ['finished', 'stopped', 'disconnected', 'error'].includes(status);
@@ -305,7 +319,7 @@ export default function LessonPage() {
             <main className="lesson-page">
                 {/* Header */}
                 <header className="lesson-header">
-                    <button className="back-btn" onClick={goBack}>← Back</button>
+                    <button className="back-btn" onClick={goBack}>{t('lesson.back')}</button>
                     <div className="lesson-title-area">
                         <h1>{lessonTitle}</h1>
                         {section && <span className="section-title">{section.title}</span>}
@@ -320,7 +334,7 @@ export default function LessonPage() {
                 {stepProgress.total > 0 && (
                     <div className="step-progress-bar">
                         <div className="step-progress-fill" style={{ width: `${stepPct}%` }} />
-                        <span className="step-progress-label">{stepProgress.current}/{stepProgress.total} steps</span>
+                        <span className="step-progress-label">{stepProgress.current}/{stepProgress.total} {t('lesson.steps')}</span>
                     </div>
                 )}
 
@@ -332,7 +346,7 @@ export default function LessonPage() {
                     {showIntro && (
                         <div className="section-intro-overlay">
                             <div className="section-intro-card">
-                                <span className="section-intro-number">Section {showIntro.index}</span>
+                                <span className="section-intro-number">{t('lesson.section')} {showIntro.index}</span>
                                 <h2 className="section-intro-title">{showIntro.title}</h2>
                             </div>
                         </div>
@@ -345,7 +359,7 @@ export default function LessonPage() {
                         <div className="quiz-card">
                             <div className="quiz-header">
                                 <span className="quiz-icon">🧠</span>
-                                <h3>Quick Check!</h3>
+                                <h3>{t('lesson.quizTitle')}</h3>
                             </div>
                             <p className="quiz-question">{quiz.question}</p>
                             <div className="quiz-options">
@@ -363,11 +377,11 @@ export default function LessonPage() {
                             </div>
                             {quizResult && (
                                 <div className={`quiz-feedback ${quizResult.correct ? 'correct' : 'wrong'}`}>
-                                    {quizResult.correct ? '✅ Correct!' : `❌ ${quizResult.explanation || ''}`}
+                                    {quizResult.correct ? t('lesson.quizCorrect') : `❌ ${quizResult.explanation || ''}`}
                                 </div>
                             )}
                             {quizResult && !quizResult.correct && (
-                                <button className="quiz-dismiss" onClick={() => { setQuiz(null); setQuizResult(null); }}>Continue</button>
+                                <button className="quiz-dismiss" onClick={() => { setQuiz(null); setQuizResult(null); }}>{t('lesson.quizContinue')}</button>
                             )}
                         </div>
                     </div>
@@ -376,10 +390,10 @@ export default function LessonPage() {
                 {/* Transcript */}
                 {transcript.length > 0 && (
                     <div className="lesson-transcript" ref={transcriptRef}>
-                        {transcript.map(t => (
-                            <div key={t.id} className={`tx-msg ${t.role}`}>
-                                <span className="tx-role">{t.role === 'ai' ? '🤖' : '🧑'}</span>
-                                <span className="tx-text">{t.text}</span>
+                        {transcript.map(t_ => (
+                            <div key={t_.id} className={`tx-msg ${t_.role}`}>
+                                <span className="tx-role">{t_.role === 'ai' ? '🤖' : '🧑'}</span>
+                                <span className="tx-text">{t_.text}</span>
                             </div>
                         ))}
                     </div>
@@ -390,8 +404,8 @@ export default function LessonPage() {
                 {errors.length > 0 && (
                     <div className="error-log" role="log">
                         <div className="error-log-header">
-                            <span>⚠ Errors</span>
-                            <button className="error-log-clear" onClick={() => setErrors([])}>clear</button>
+                            <span>{t('lesson.errors')}</span>
+                            <button className="error-log-clear" onClick={() => setErrors([])}>{t('lesson.clear')}</button>
                         </div>
                         {errors.map(e => <div key={e.id} className="error-entry">{e.text}</div>)}
                     </div>
@@ -404,7 +418,7 @@ export default function LessonPage() {
                         className="ctrl-btn nav"
                         onClick={handlePrevSection}
                         disabled={isTerminal || !section || section.index <= 1}
-                        title="Previous section (←)"
+                        title={t('lesson.prevSection')}
                     >
                         ⏮
                     </button>
@@ -414,10 +428,10 @@ export default function LessonPage() {
                         <button
                             className={`ctrl-btn pause-play ${status === 'paused' ? 'paused' : ''}`}
                             onClick={status === 'paused' ? handlePlay : handlePause}
-                            title={status === 'paused' ? 'Resume (Space)' : 'Pause (Space)'}
+                            title={status === 'paused' ? t('lesson.playKey') : t('lesson.pauseKey')}
                         >
                             {status === 'paused' ? '▶' : '⏸'}
-                            <span>{status === 'paused' ? 'Play' : 'Pause'}</span>
+                            <span>{status === 'paused' ? t('lesson.play') : t('lesson.pause')}</span>
                         </button>
                     )}
 
@@ -427,10 +441,10 @@ export default function LessonPage() {
                         onClick={handleMicToggle}
                         disabled={isTerminal || !canToggleMic}
                         title={
-                            micActive ? 'Stop recording'
-                                : status === 'teaching' ? 'Ask a question (M)'
-                                    : status === 'confirming' ? 'Ask a follow-up'
-                                        : 'Microphone'
+                            micActive ? t('lesson.stopRec')
+                                : status === 'teaching' ? t('lesson.askQuestion')
+                                    : status === 'confirming' ? t('lesson.followUp')
+                                        : t('lesson.mic')
                         }
                     >
                         <div className="mic-ring" />
@@ -440,7 +454,7 @@ export default function LessonPage() {
                     {/* Continue Lesson — visible during Q&A states */}
                     {isQA && (
                         <button className="ctrl-btn resume" onClick={handleResume}>
-                            ▶ <span>Continue Lesson</span>
+                            ▶ <span>{t('lesson.continueLes')}</span>
                         </button>
                     )}
 
@@ -449,7 +463,7 @@ export default function LessonPage() {
                         className="ctrl-btn nav"
                         onClick={handleNextSection}
                         disabled={isTerminal || !section || !planRef.current || section.index >= planRef.current.sections.length}
-                        title="Next section (→)"
+                        title={t('lesson.nextSection')}
                     >
                         ⏭
                     </button>
@@ -470,12 +484,12 @@ export default function LessonPage() {
 
                     {/* Stop */}
                     <button className="ctrl-btn stop" onClick={handleStop} disabled={isTerminal}>
-                        ⏹ <span>Stop</span>
+                        ⏹ <span>{t('lesson.stop')}</span>
                     </button>
 
                     {/* Home */}
                     {(status === 'finished' || status === 'stopped') && (
-                        <button className="ctrl-btn done" onClick={goBack}>🏠 <span>Home</span></button>
+                        <button className="ctrl-btn done" onClick={goBack}>🏠 <span>{t('lesson.home')}</span></button>
                     )}
                 </div>
             </main>

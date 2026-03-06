@@ -20,16 +20,17 @@ const C = {
     arrow: '#7dd3fc',
 };
 
+// Arabic-friendly font stacks — "Cairo" matches the handwriting aesthetic
 const F = {
-    title: 'bold 25px "Patrick Hand", "Comic Sans MS", cursive',
-    writeBd: 'bold 18px "Patrick Hand", "Comic Sans MS", cursive',
-    write: '400 17px "Patrick Hand", "Comic Sans MS", cursive',
-    bullet: '400 16px "Patrick Hand", "Comic Sans MS", cursive',
+    title: 'bold 25px "Patrick Hand", "Cairo", cursive',
+    writeBd: 'bold 18px "Patrick Hand", "Cairo", cursive',
+    write: '400 17px "Patrick Hand", "Cairo", cursive',
+    bullet: '400 16px "Patrick Hand", "Cairo", cursive',
     mono: '600 17px "JetBrains Mono", monospace',
     monoLg: 'bold 28px "JetBrains Mono", monospace',
-    label: '400 13px "Patrick Hand", cursive',
-    labelBd: '600 13px "Inter", sans-serif',
-    small: '400 12px "Inter", sans-serif',
+    label: '400 13px "Patrick Hand", "Cairo", cursive',
+    labelBd: '600 13px "Inter", "Cairo", sans-serif',
+    small: '400 12px "Inter", "Cairo", sans-serif',
 };
 
 // ─── Easing ───────────────────────────────────────────────────────────────────
@@ -40,6 +41,67 @@ function easeIn(t) { return t * t * t; }
 let seed = 1;
 function srnd() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
 function jitter(n = 1) { return (srnd() - 0.5) * n * 2; }
+
+// ─── Arabic / RTL helpers ────────────────────────────────────────────────────
+const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+function _hasArabic(text) { return ARABIC_RE.test(text); }
+function _isArabicChar(ch) { return ARABIC_RE.test(ch); }
+
+/**
+ * Split text into directional segments: { text, isArabic }
+ * Groups consecutive Arabic chars (including spaces between Arabic words) together,
+ * and Latin chars together, so Arabic segments can be drawn as full strings.
+ */
+function _splitBidiSegments(text) {
+    if (!text) return [];
+    const segments = [];
+    let current = '';
+    let currentIsArabic = null;
+
+    for (const ch of text) {
+        const isAr = _isArabicChar(ch);
+        // Spaces: attach to the current segment direction
+        if (ch === ' ') {
+            current += ch;
+            continue;
+        }
+        if (currentIsArabic === null) {
+            currentIsArabic = isAr;
+            current = ch;
+        } else if (isAr === currentIsArabic) {
+            current += ch;
+        } else {
+            if (current.trim()) segments.push({ text: current, isArabic: currentIsArabic });
+            else if (current) {
+                // Trailing space — attach to previous
+                if (segments.length > 0) segments[segments.length - 1].text += current;
+            }
+            current = ch;
+            currentIsArabic = isAr;
+        }
+    }
+    if (current) segments.push({ text: current, isArabic: currentIsArabic ?? false });
+    return segments;
+}
+
+/**
+ * Split Arabic text into words for word-by-word animation.
+ */
+function _splitArabicWords(text) {
+    const words = [];
+    let current = '';
+    for (const ch of text) {
+        if (ch === ' ') {
+            if (current) words.push(current);
+            words.push(' ');
+            current = '';
+        } else {
+            current += ch;
+        }
+    }
+    if (current) words.push(current);
+    return words;
+}
 
 // ─── Sketchy line (wobbly human feel) ────────────────────────────────────────
 function sketchLine(ctx, x1, y1, x2, y2, color, lw = 1.5, wobble = 3) {
@@ -229,44 +291,148 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
         }
     }
 
-    // ── Human handwriting: slow, per-character, natural variation ─────────
-    function _handwrite(ctx, text, x, y, font, color, durationMs) {
+    // ── Human handwriting animation ──────────────────────────────────────
+    // Arabic: clip-based progressive reveal (preserves ligatures + bidi)
+    // Latin:  char-by-char (original handwriting feel)
+    // When rtl=true, x is the RIGHT edge. When rtl=false, x is the LEFT edge.
+    function _handwrite(ctx, text, x, y, font, color, durationMs, rtl = false) {
         return new Promise(resolve => {
             if (!text) { resolve(); return; }
-            const chars = [...text];
-            let cx = x;
-            let i = 0;
-            // Natural wpm-based speed: ~60wpm → ~300ms/word → ~60ms/char avg
-            const avgMs = durationMs > 0
-                ? Math.max(5, Math.min(120, durationMs / chars.length)) // Min 5ms so it can keep up with fast speech
-                : 55;
 
-            const drawNext = () => {
-                if (frozenRef.current) { resolve(); return; }
-                if (i >= chars.length) { resolve(); return; }
+            const hasAr = _hasArabic(text);
 
-                // Natural variation in pen speed (faster on vowels, slower on curves)
-                const ch = chars[i];
-                const isComplex = /[mwMWBDQO@]/.test(ch);
-                const isSimple = /[il1!.,;: ]/.test(ch);
-                const charMs = avgMs * (isComplex ? 1.4 : isSimple ? 0.6 : 1.0)
-                    + (srnd() - 0.5) * 12; // random ±6ms
-
-                // Micro jitter — simulates hand shake
-                const jx = jitter(0.6);
-                const jy = jitter(0.5);
+            if (hasAr) {
+                // ── Arabic: progressive offscreen reveal (glitch-free) ──
+                // Draw perfectly once, then copy slices to avoid overlapping anti-aliasing
+                const dpr = window.devicePixelRatio || 1;
                 ctx.font = font;
-                ctx.fillStyle = color;
-                ctx.fillText(ch, cx + jx, y + jy);
-                cx += ctx.measureText(ch).width;
-                i++;
+                const tw = ctx.measureText(text).width;
 
-                // Occasional micro-pause (like lifting pen)
-                const pause = srnd() < 0.05 ? charMs * 2.0 : charMs;
-                setTimeout(drawNext, Math.max(2, pause)); // Don't delay more than 2ms physically if pause is small
-            };
-            setTimeout(drawNext, 0);
+                const offCanvas = document.createElement('canvas');
+                const padX = 20;
+                const padY = 40;
+                const oW = Math.ceil(tw) + padX * 2;
+                const oH = padY * 2;
+
+                offCanvas.width = oW * dpr;
+                offCanvas.height = oH * dpr;
+                const oCtx = offCanvas.getContext('2d');
+                oCtx.scale(dpr, dpr);
+
+                oCtx.font = font;
+                oCtx.fillStyle = color;
+                oCtx.textBaseline = 'alphabetic';
+
+                if (rtl) {
+                    oCtx.direction = 'rtl';
+                    oCtx.textAlign = 'right';
+                    oCtx.fillText(text, oW - padX, padY);
+                } else {
+                    oCtx.direction = 'ltr';
+                    oCtx.textAlign = 'left';
+                    oCtx.fillText(text, padX, padY);
+                }
+
+                const steps = Math.max(6, Math.min(30, Math.floor(tw / 10)));
+                const stepWidth = oW / steps;
+                const baseMs = durationMs > 0 ? Math.max(8, Math.min(100, durationMs / steps)) : 30;
+
+                let step = 0;
+                const drawStep = () => {
+                    if (frozenRef.current) { resolve(); return; }
+                    if (step >= steps) { resolve(); return; }
+
+                    step++;
+                    const prevW = Math.floor((step - 1) * stepWidth);
+                    const curW = (step === steps) ? oW : Math.floor(step * stepWidth);
+                    const sliceW = curW - prevW;
+
+                    if (sliceW > 0) {
+                        const destY = y - padY;
+                        if (rtl) {
+                            // Reveal right-to-left
+                            const srcX = oW - curW;
+                            const destX = x - padX - tw + srcX;
+                            ctx.drawImage(offCanvas, srcX * dpr, 0, sliceW * dpr, oH * dpr, destX, destY, sliceW, oH);
+                        } else {
+                            // Reveal left-to-right
+                            const srcX = prevW;
+                            const destX = x - padX + srcX;
+                            ctx.drawImage(offCanvas, srcX * dpr, 0, sliceW * dpr, oH * dpr, destX, destY, sliceW, oH);
+                        }
+                    }
+
+                    const variance = (srnd() - 0.5) * baseMs * 0.4;
+                    const pause = srnd() < 0.05 ? baseMs * 2.0 : baseMs + variance;
+                    setTimeout(drawStep, Math.max(5, pause));
+                };
+                setTimeout(drawStep, 0);
+
+            } else {
+                // ── Latin char-by-char rendering (original logic) ────
+                ctx.font = font;
+                const chars = [...text];
+                let cx = x;
+                if (rtl) {
+                    cx = x - ctx.measureText(text).width;
+                }
+
+                let i = 0;
+                const avgMs = durationMs > 0
+                    ? Math.max(5, Math.min(120, durationMs / chars.length))
+                    : 55;
+
+                const drawNext = () => {
+                    if (frozenRef.current) { resolve(); return; }
+                    if (i >= chars.length) { resolve(); return; }
+
+                    const ch = chars[i];
+                    const isComplex = /[mwMWBDQO@]/.test(ch);
+                    const isSimple = /[il1!.,;: ]/.test(ch);
+                    const charMs = avgMs * (isComplex ? 1.4 : isSimple ? 0.6 : 1.0)
+                        + (srnd() - 0.5) * 12;
+
+                    const jx = jitter(0.6);
+                    const jy = jitter(0.5);
+                    ctx.font = font;
+                    ctx.fillStyle = color;
+                    ctx.fillText(ch, cx + jx, y + jy);
+                    cx += ctx.measureText(ch).width;
+                    i++;
+
+                    const pause = srnd() < 0.05 ? charMs * 2.0 : charMs;
+                    setTimeout(drawNext, Math.max(2, pause));
+                };
+                setTimeout(drawNext, 0);
+            }
         });
+    }
+
+    // ── Draw text with glow effect (RTL-aware) ─────────────────────────────
+    function _drawGlow(ctx, text, x, y, font, glowColor, rtl = false) {
+        ctx.save();
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 12;
+        ctx.font = font;
+        ctx.fillStyle = 'transparent';
+        if (rtl) {
+            ctx.direction = 'rtl';
+            ctx.textAlign = 'right';
+        }
+        ctx.fillText(text, x, y);
+        ctx.restore();
+    }
+
+    // ── RTL-aware underline ────────────────────────────────────────────────
+    async function _drawUnderline(ctx, text, x, y, font, color, maxW, rtl, animMs) {
+        ctx.font = font;
+        const tw = ctx.measureText(text).width;
+        if (rtl) {
+            // Underline from right (x) to left (x - tw)
+            await animSketch(ctx, x, y, x - tw - 6, y, color, 2, 2, animMs);
+        } else {
+            await animSketch(ctx, x, y, x + tw + 6, y, color, 2, 2, animMs);
+        }
     }
 
     // ── Process command ────────────────────────────────────────────────────
@@ -293,18 +459,12 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'title': {
                 c.y += 8;
                 const text = cmd.text || '';
+                const rtl = _hasArabic(text);
+                const textX = rtl ? c.x + maxW : c.x;
                 // Text glow effect
-                ctx.save();
-                ctx.shadowColor = C.title;
-                ctx.shadowBlur = 12;
-                ctx.font = F.title;
-                ctx.fillStyle = 'transparent';
-                ctx.fillText(text, c.x, c.y);
-                ctx.restore();
-                await _handwrite(ctx, text, c.x, c.y, F.title, C.title, animMs * 1.0);
-                ctx.font = F.title;
-                const tw = ctx.measureText(text).width;
-                await animSketch(ctx, c.x, c.y + 9, c.x + tw + 6, c.y + 9, C.title + 'aa', 2, 2, 350);
+                _drawGlow(ctx, text, textX, c.y, F.title, C.title, rtl);
+                await _handwrite(ctx, text, textX, c.y, F.title, C.title, animMs * 1.0, rtl);
+                await _drawUnderline(ctx, text, textX, c.y + 9, F.title, C.title + 'aa', maxW, rtl, 350);
                 c.y += 44;
                 break;
             }
@@ -313,19 +473,11 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'heading': {
                 c.y += 10;
                 const text = cmd.text || '';
-                // Text glow effect
-                ctx.save();
-                ctx.shadowColor = C.blue;
-                ctx.shadowBlur = 8;
-                ctx.font = F.writeBd;
-                ctx.fillStyle = 'transparent';
-                ctx.fillText(text, c.x, c.y);
-                ctx.restore();
-                await _handwrite(ctx, text, c.x, c.y, F.writeBd, C.blue, animMs);
-                // Animated underline sweep
-                ctx.font = F.writeBd;
-                const hw = ctx.measureText(text).width;
-                await animSketch(ctx, c.x, c.y + 6, c.x + hw, c.y + 6, C.blue + '66', 1.5, 1, 300);
+                const rtl = _hasArabic(text);
+                const textX = rtl ? c.x + maxW : c.x;
+                _drawGlow(ctx, text, textX, c.y, F.writeBd, C.blue, rtl);
+                await _handwrite(ctx, text, textX, c.y, F.writeBd, C.blue, animMs, rtl);
+                await _drawUnderline(ctx, text, textX, c.y + 6, F.writeBd, C.blue + '66', maxW, rtl, 300);
                 c.y += 32;
                 break;
             }
@@ -334,10 +486,10 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'subheading': {
                 c.y += 4;
                 const text = cmd.text || '';
-                await _handwrite(ctx, text, c.x, c.y, F.write, C.muted, animMs);
-                ctx.font = F.write;
-                const tw = ctx.measureText(text).width;
-                await animSketch(ctx, c.x, c.y + 4, c.x + tw, c.y + 4, C.muted + '88', 1.5, 1, 250);
+                const rtl = _hasArabic(text);
+                const textX = rtl ? c.x + maxW : c.x;
+                await _handwrite(ctx, text, textX, c.y, F.write, C.muted, animMs, rtl);
+                await _drawUnderline(ctx, text, textX, c.y + 4, F.write, C.muted + '88', maxW, rtl, 250);
                 c.y += 28;
                 break;
             }
@@ -346,21 +498,36 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'write': {
                 const lines = (cmd.text || '').split('\n');
                 const lineTime = animMs / lines.length;
+                const rtl = _hasArabic(cmd.text || '');
                 for (const raw of lines) {
                     if (!raw.trim()) { c.y += 16; continue; }
                     const isBullet = raw.trim().startsWith('•') || raw.trim().startsWith('-');
                     const text = isBullet ? raw.replace(/^[•\-]\s*/, '') : raw;
                     if (isBullet) {
-                        ctx.strokeStyle = C.bullet;
-                        ctx.lineWidth = 2;
-                        ctx.lineCap = 'round';
-                        ctx.beginPath();
-                        ctx.moveTo(c.x + 3 + jitter(1), c.y - 5 + jitter(1));
-                        ctx.lineTo(c.x + 10 + jitter(1), c.y - 5 + jitter(1));
-                        ctx.stroke();
-                        await _handwrite(ctx, text, c.x + 18, c.y, F.bullet, C.text, lineTime);
+                        if (rtl) {
+                            // RTL: bullet on right, text to left
+                            const bulletX = c.x + maxW - 10;
+                            ctx.strokeStyle = C.bullet;
+                            ctx.lineWidth = 2;
+                            ctx.lineCap = 'round';
+                            ctx.beginPath();
+                            ctx.moveTo(bulletX - 7 + jitter(1), c.y - 5 + jitter(1));
+                            ctx.lineTo(bulletX + jitter(1), c.y - 5 + jitter(1));
+                            ctx.stroke();
+                            await _handwrite(ctx, text, bulletX - 18, c.y, F.bullet, C.text, lineTime, true);
+                        } else {
+                            ctx.strokeStyle = C.bullet;
+                            ctx.lineWidth = 2;
+                            ctx.lineCap = 'round';
+                            ctx.beginPath();
+                            ctx.moveTo(c.x + 3 + jitter(1), c.y - 5 + jitter(1));
+                            ctx.lineTo(c.x + 10 + jitter(1), c.y - 5 + jitter(1));
+                            ctx.stroke();
+                            await _handwrite(ctx, text, c.x + 18, c.y, F.bullet, C.text, lineTime);
+                        }
                     } else {
-                        await _handwrite(ctx, text, c.x, c.y, F.write, C.text, lineTime);
+                        const textX = rtl ? c.x + maxW : c.x;
+                        await _handwrite(ctx, text, textX, c.y, F.write, C.text, lineTime, rtl);
                     }
                     c.y += 28;
                 }
@@ -372,10 +539,17 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'numbered': {
                 const items = cmd.items || [];
                 const itemTime = animMs / (items.length || 1);
+                const rtl = items.length > 0 && _hasArabic(items[0]);
                 for (let i = 0; i < items.length; i++) {
                     const text = items[i];
-                    await _handwrite(ctx, `${i + 1}.`, c.x, c.y, F.writeBd, C.blue, itemTime * 0.2);
-                    await _handwrite(ctx, text, c.x + 24, c.y, F.write, C.text, itemTime * 0.8);
+                    if (rtl) {
+                        const numX = c.x + maxW;
+                        await _handwrite(ctx, `.${i + 1}`, numX, c.y, F.writeBd, C.blue, itemTime * 0.2, true);
+                        await _handwrite(ctx, text, numX - 24, c.y, F.write, C.text, itemTime * 0.8, true);
+                    } else {
+                        await _handwrite(ctx, `${i + 1}.`, c.x, c.y, F.writeBd, C.blue, itemTime * 0.2);
+                        await _handwrite(ctx, text, c.x + 24, c.y, F.write, C.text, itemTime * 0.8);
+                    }
                     c.y += 28;
                 }
                 c.y += 8;
@@ -429,6 +603,7 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             // ── BOX ───────────────────────────────────────────────────────────
             case 'box': {
                 const text = cmd.text || '';
+                const rtl = _hasArabic(text);
                 const s = cmd.style || 'default';
                 const styleMap = {
                     highlight: { fill: 'rgba(251,191,36,0.07)', border: C.yellow, text: C.yellow },
@@ -443,10 +618,12 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 const bw = Math.min(tw + 52, maxW);
                 const bh = 54;
                 const by = c.y - 28;
+                const bx = rtl ? c.x + maxW - bw : c.x;
                 ctx.fillStyle = sc.fill;
-                ctx.fillRect(c.x, by, bw, bh);
-                await animRect(ctx, c.x, by, bw, bh, sc.border + '99', 2, 500);
-                await _handwrite(ctx, text, c.x + 16, c.y + 4, font, sc.text, animMs * 0.8);
+                ctx.fillRect(bx, by, bw, bh);
+                await animRect(ctx, bx, by, bw, bh, sc.border + '99', 2, 500);
+                const textX = rtl ? bx + bw - 16 : bx + 16;
+                await _handwrite(ctx, text, textX, c.y + 4, font, sc.text, animMs * 0.8, rtl);
                 c.y += bh + 24;
                 break;
             }
@@ -454,6 +631,7 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             // ── CALLOUT ───────────────────────────────────────────────────────
             case 'callout': {
                 const text = cmd.text || '';
+                const rtl = _hasArabic(text);
                 const s = cmd.style || 'default';
                 const clr = s === 'highlight' ? C.yellow : s === 'important' ? C.red : C.muted;
                 ctx.font = F.write;
@@ -461,17 +639,27 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 const bw = Math.min(tw + 28, maxW);
                 const bh = 46;
                 const by = c.y - 24;
-                // Tail
+                const bx = rtl ? c.x + maxW - bw : c.x;
                 ctx.fillStyle = clr + '18';
-                ctx.beginPath();
-                ctx.moveTo(c.x - 14 + jitter(2), c.y - 6 + jitter(2));
-                ctx.lineTo(c.x + jitter(2), by + 10 + jitter(2));
-                ctx.lineTo(c.x + jitter(2), by + bh - 10 + jitter(2));
-                ctx.closePath();
-                ctx.fill();
-                ctx.fillRect(c.x, by, bw, bh);
-                await animRect(ctx, c.x, by, bw, bh, clr + '66', 1.5, 400);
-                await _handwrite(ctx, text, c.x + 12, c.y + 4, F.write, clr, animMs * 0.7);
+                if (rtl) {
+                    ctx.beginPath();
+                    ctx.moveTo(bx + bw + 14 + jitter(2), c.y - 6 + jitter(2));
+                    ctx.lineTo(bx + bw + jitter(2), by + 10 + jitter(2));
+                    ctx.lineTo(bx + bw + jitter(2), by + bh - 10 + jitter(2));
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    ctx.beginPath();
+                    ctx.moveTo(bx - 14 + jitter(2), c.y - 6 + jitter(2));
+                    ctx.lineTo(bx + jitter(2), by + 10 + jitter(2));
+                    ctx.lineTo(bx + jitter(2), by + bh - 10 + jitter(2));
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.fillRect(bx, by, bw, bh);
+                await animRect(ctx, bx, by, bw, bh, clr + '66', 1.5, 400);
+                const textX = rtl ? bx + bw - 12 : bx + 12;
+                await _handwrite(ctx, text, textX, c.y + 4, F.write, clr, animMs * 0.7, rtl);
                 c.y += bh + 24;
                 break;
             }
@@ -479,10 +667,10 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             // ── UNDERLINE ────────────────────────────────────────────────────
             case 'underline': {
                 const text = cmd.text || '';
-                ctx.font = F.write;
-                const tw = ctx.measureText(text).width;
-                await _handwrite(ctx, text, c.x, c.y, F.write, C.yellow, animMs);
-                await animSketch(ctx, c.x, c.y + 6, c.x + tw, c.y + 6, C.yellow + 'cc', 2, 2, 280);
+                const rtl = _hasArabic(text);
+                const textX = rtl ? c.x + maxW : c.x;
+                await _handwrite(ctx, text, textX, c.y, F.write, C.yellow, animMs, rtl);
+                await _drawUnderline(ctx, text, textX, c.y + 6, F.write, C.yellow + 'cc', maxW, rtl, 280);
                 c.y += 32;
                 break;
             }
@@ -511,20 +699,30 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'list': {
                 const items = cmd.items || [];
                 const title = cmd.title || '';
+                const rtl = _hasArabic(title || (items[0] || ''));
                 if (title) {
-                    await _handwrite(ctx, title, c.x, c.y + 10, F.writeBd, C.text, animMs * 0.2);
+                    const titleX = rtl ? c.x + maxW : c.x;
+                    await _handwrite(ctx, title, titleX, c.y + 10, F.writeBd, C.text, animMs * 0.2, rtl);
                     c.y += 36;
                 }
                 const itemTime = animMs / (items.length || 1);
                 for (let li = 0; li < items.length; li++) {
                     const text = items[li];
-                    // Sketchy bullet
-                    ctx.fillStyle = C.blue;
-                    ctx.beginPath();
-                    ctx.arc(c.x + 10 + jitter(1), c.y - 6 + jitter(1), 3 + jitter(1), 0, Math.PI * 2);
-                    ctx.fill();
-                    // Text
-                    await _handwrite(ctx, text, c.x + 28, c.y, F.write, C.text, itemTime * 0.8);
+                    if (rtl) {
+                        // RTL: bullet on right, text to left
+                        const bulletX = c.x + maxW - 10;
+                        ctx.fillStyle = C.blue;
+                        ctx.beginPath();
+                        ctx.arc(bulletX + jitter(1), c.y - 6 + jitter(1), 3 + jitter(1), 0, Math.PI * 2);
+                        ctx.fill();
+                        await _handwrite(ctx, text, bulletX - 18, c.y, F.write, C.text, itemTime * 0.8, true);
+                    } else {
+                        ctx.fillStyle = C.blue;
+                        ctx.beginPath();
+                        ctx.arc(c.x + 10 + jitter(1), c.y - 6 + jitter(1), 3 + jitter(1), 0, Math.PI * 2);
+                        ctx.fill();
+                        await _handwrite(ctx, text, c.x + 28, c.y, F.write, C.text, itemTime * 0.8);
+                    }
                     c.y += 32;
                 }
                 c.y += 10;
@@ -534,13 +732,21 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             // ── CHECK (green mark) ───────────────────────────────────────────
             case 'check': {
                 const text = cmd.text || '';
+                const rtl = _hasArabic(text);
                 const sy = c.y + 10;
-                const sx = c.x + 10;
-                // draw checkmark
-                await animSketch(ctx, sx, sy, sx + 8, sy + 10, C.green, 3, 1, 200);
-                await animSketch(ctx, sx + 8, sy + 10, sx + 24, sy - 12, C.green, 3, 1, 300);
-                if (text) {
-                    await _handwrite(ctx, text, sx + 40, sy + 4, F.write, C.green, animMs * 0.7);
+                if (rtl) {
+                    const sx = c.x + maxW - 10;
+                    await animSketch(ctx, sx, sy, sx - 8, sy + 10, C.green, 3, 1, 200);
+                    await animSketch(ctx, sx - 8, sy + 10, sx - 24, sy - 12, C.green, 3, 1, 300);
+                    if (text) await _handwrite(ctx, text, sx - 40, sy + 4, F.write, C.green, animMs * 0.7, true);
+                } else {
+                    const sx = c.x + 10;
+                    // draw checkmark
+                    await animSketch(ctx, sx, sy, sx + 8, sy + 10, C.green, 3, 1, 200);
+                    await animSketch(ctx, sx + 8, sy + 10, sx + 24, sy - 12, C.green, 3, 1, 300);
+                    if (text) {
+                        await _handwrite(ctx, text, sx + 40, sy + 4, F.write, C.green, animMs * 0.7);
+                    }
                 }
                 c.y += 40;
                 break;
@@ -549,13 +755,21 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             // ── CROSS (red X) ────────────────────────────────────────────────
             case 'cross': {
                 const text = cmd.text || '';
+                const rtl = _hasArabic(text);
                 const sy = c.y + 10;
-                const sx = c.x + 10;
-                // draw X
-                await animSketch(ctx, sx, sy - 10, sx + 18, sy + 8, C.red, 3, 1, 200);
-                await animSketch(ctx, sx + 18, sy - 10, sx, sy + 8, C.red, 3, 1, 200);
-                if (text) {
-                    await _handwrite(ctx, text, sx + 40, sy + 4, F.write, C.red, animMs * 0.7);
+                if (rtl) {
+                    const sx = c.x + maxW - 10;
+                    await animSketch(ctx, sx, sy - 10, sx - 18, sy + 8, C.red, 3, 1, 200);
+                    await animSketch(ctx, sx - 18, sy - 10, sx, sy + 8, C.red, 3, 1, 200);
+                    if (text) await _handwrite(ctx, text, sx - 40, sy + 4, F.write, C.red, animMs * 0.7, true);
+                } else {
+                    const sx = c.x + 10;
+                    // draw X
+                    await animSketch(ctx, sx, sy - 10, sx + 18, sy + 8, C.red, 3, 1, 200);
+                    await animSketch(ctx, sx + 18, sy - 10, sx, sy + 8, C.red, 3, 1, 200);
+                    if (text) {
+                        await _handwrite(ctx, text, sx + 40, sy + 4, F.write, C.red, animMs * 0.7);
+                    }
                 }
                 c.y += 40;
                 break;
@@ -615,10 +829,18 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 const baseY = c.y + chartH;
                 const barColors = [C.blue, C.green, C.yellow, C.orange, C.pink, C.teal, C.red, C.muted];
 
+                const isRTL = _hasArabic(title) || data.some(d => _hasArabic(d.label));
+
                 if (title) {
                     ctx.font = F.labelBd;
                     ctx.fillStyle = C.muted;
-                    ctx.fillText(title, c.x, c.y - 8);
+                    if (isRTL) {
+                        ctx.textAlign = 'right';
+                        ctx.fillText(title, c.x + chartW, c.y - 8);
+                        ctx.textAlign = 'left';
+                    } else {
+                        ctx.fillText(title, c.x, c.y - 8);
+                    }
                 }
                 // Baseline (sketchy)
                 sketchLine(ctx, c.x, baseY, c.x + chartW, baseY, C.muted + '44', 1, 2);
@@ -829,39 +1051,79 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 const rows = (cmd.rows || []).slice(0, 6);
                 const title = cmd.title || '';
                 if (!headers.length) break;
+
+                // Detect RTL from title or first header/row
+                let isRTL = _hasArabic(title) || _hasArabic(String(headers[0] || ''));
+                if (!isRTL && rows.length > 0) {
+                    const firstRow = Array.isArray(rows[0]) ? rows[0] : Object.values(rows[0]);
+                    isRTL = _hasArabic(String(firstRow[0] || ''));
+                }
+
                 const cols = headers.length;
                 const colW = Math.floor(Math.min(150, maxW / cols));
                 const rowH = 28;
                 const tableW = colW * cols;
+                const tableX = isRTL ? c.x + maxW - tableW : c.x;
 
                 if (title) {
                     ctx.font = F.labelBd;
                     ctx.fillStyle = C.muted;
-                    ctx.fillText(title, c.x, c.y - 8);
+                    if (isRTL) {
+                        ctx.textAlign = 'right';
+                        ctx.fillText(title, c.x + maxW, c.y - 8);
+                        ctx.textAlign = 'left';
+                    } else {
+                        ctx.fillText(title, tableX, c.y - 8);
+                    }
                     c.y += 18;
                 }
 
                 // Header bg
                 ctx.fillStyle = 'rgba(96,165,250,0.08)';
-                ctx.fillRect(c.x, c.y - 20, tableW, rowH);
-                await animRect(ctx, c.x, c.y - 20, tableW, rowH * (rows.length + 1), C.muted + '33', 1, 600);
+                ctx.fillRect(tableX, c.y - 20, tableW, rowH);
+                await animRect(ctx, tableX, c.y - 20, tableW, rowH * (rows.length + 1), C.muted + '33', 1, 600);
 
                 for (let hi = 0; hi < cols; hi++) {
+                    const renderCol = isRTL ? (cols - 1 - hi) : hi;
+                    const cellX = tableX + renderCol * colW;
                     ctx.font = F.labelBd;
                     ctx.fillStyle = C.blue;
-                    ctx.fillText(String(headers[hi]).slice(0, 18), c.x + hi * colW + 7, c.y - 5);
-                    if (hi > 0) sketchLine(ctx, c.x + hi * colW, c.y - 20, c.x + hi * colW, c.y - 20 + rowH * (rows.length + 1), C.muted + '22', 1, 1);
-                }
-                for (let ri = 0; ri < rows.length; ri++) {
-                    const ry = c.y + ri * rowH;
-                    sketchLine(ctx, c.x, ry, c.x + tableW, ry, C.muted + '22', 1, 1);
-                    const row = Array.isArray(rows[ri]) ? rows[ri] : Object.values(rows[ri]);
-                    for (let ci = 0; ci < cols; ci++) {
-                        ctx.font = F.label;
-                        ctx.fillStyle = C.text + 'cc';
-                        ctx.fillText(String(row[ci] ?? '').slice(0, 18), c.x + ci * colW + 7, ry + 17);
+
+                    if (isRTL) {
+                        ctx.textAlign = 'right';
+                        ctx.fillText(String(headers[hi]).slice(0, 18), cellX + colW - 7, c.y - 5);
+                    } else {
+                        ctx.textAlign = 'left';
+                        ctx.fillText(String(headers[hi]).slice(0, 18), cellX + 7, c.y - 5);
+                    }
+
+                    if (renderCol > 0) {
+                        sketchLine(ctx, cellX, c.y - 20, cellX, c.y - 20 + rowH * (rows.length + 1), C.muted + '22', 1, 1);
                     }
                 }
+                ctx.textAlign = 'left'; // reset
+
+                for (let ri = 0; ri < rows.length; ri++) {
+                    const ry = c.y + ri * rowH;
+                    sketchLine(ctx, tableX, ry, tableX + tableW, ry, C.muted + '22', 1, 1);
+                    const row = Array.isArray(rows[ri]) ? rows[ri] : Object.values(rows[ri]);
+
+                    for (let ci = 0; ci < cols; ci++) {
+                        const renderCol = isRTL ? (cols - 1 - ci) : ci;
+                        const cellX = tableX + renderCol * colW;
+                        ctx.font = F.label;
+                        ctx.fillStyle = C.text + 'cc';
+
+                        if (isRTL) {
+                            ctx.textAlign = 'right';
+                            ctx.fillText(String(row[ci] ?? '').slice(0, 18), cellX + colW - 7, ry + 17);
+                        } else {
+                            ctx.textAlign = 'left';
+                            ctx.fillText(String(row[ci] ?? '').slice(0, 18), cellX + 7, ry + 17);
+                        }
+                    }
+                }
+                ctx.textAlign = 'left'; // reset
                 c.y += rowH * (rows.length + 1) + 18;
                 break;
             }
@@ -870,20 +1132,23 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'summary':
             case 'example':
             case 'practice': {
-                const title = cmd.cmd === 'summary' ? 'SUMMARY' : cmd.cmd === 'example' ? 'EXAMPLE' : 'PRACTICE';
+                const titleLabel = cmd.cmd === 'summary' ? 'SUMMARY' : cmd.cmd === 'example' ? 'EXAMPLE' : 'PRACTICE';
                 const color = cmd.cmd === 'summary' ? C.yellow : cmd.cmd === 'example' ? C.blue : C.pink;
                 const text = cmd.text || '';
+                const rtl = _hasArabic(text);
                 c.y += 24;
                 ctx.fillStyle = color + '11';
                 const lines = text.split('\n');
                 const bh = lines.length * 28 + 44;
                 ctx.fillRect(c.x, c.y - 20, maxW, bh);
                 await animRect(ctx, c.x, c.y - 20, maxW, bh, color + '66', 2, 500);
-                await _handwrite(ctx, title, c.x + 16, c.y + 4, F.writeBd, color, animMs * 0.2);
+                const labelX = rtl ? c.x + maxW - 16 : c.x + 16;
+                await _handwrite(ctx, titleLabel, labelX, c.y + 4, F.writeBd, color, animMs * 0.2, rtl);
                 c.y += 32;
                 const lineTime = (animMs * 0.8) / lines.length;
                 for (const raw of lines) {
-                    await _handwrite(ctx, raw, c.x + 16, c.y, F.write, C.text, lineTime);
+                    const lineX = rtl ? c.x + maxW - 16 : c.x + 16;
+                    await _handwrite(ctx, raw, lineX, c.y, F.write, C.text, lineTime, rtl);
                     c.y += 28;
                 }
                 c.y += 20;
@@ -894,16 +1159,26 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'tree': {
                 const root = cmd.root || 'Root';
                 const children = cmd.children || [];
-                await _handwrite(ctx, root, c.x, c.y, F.writeBd, C.text, animMs * 0.2);
+                const rtl = _hasArabic(root) || (children.length > 0 && _hasArabic(children[0]));
+                const rootX = rtl ? c.x + maxW : c.x;
+                await _handwrite(ctx, root, rootX, c.y, F.writeBd, C.text, animMs * 0.2, rtl);
                 c.y += 28;
                 const childTime = (animMs * 0.8) / children.length;
                 for (let i = 0; i < children.length; i++) {
                     const ch = children[i];
                     const isLast = i === children.length - 1;
-                    await animSketch(ctx, c.x + 8, c.y - 20, c.x + 8, c.y - 6, C.muted, 2, 1, Math.min(100, childTime * 0.1));
-                    await animSketch(ctx, c.x + 8, c.y - 6, c.x + 24, c.y - 6, C.muted, 2, 1, Math.min(100, childTime * 0.1));
-                    if (!isLast) sketchLine(ctx, c.x + 8, c.y - 6, c.x + 8, c.y + 16, C.muted, 2, 1);
-                    await _handwrite(ctx, ch, c.x + 32, c.y, F.write, C.text, childTime * 0.8);
+                    if (rtl) {
+                        const branchX = c.x + maxW - 8;
+                        await animSketch(ctx, branchX, c.y - 20, branchX, c.y - 6, C.muted, 2, 1, Math.min(100, childTime * 0.1));
+                        await animSketch(ctx, branchX, c.y - 6, branchX - 16, c.y - 6, C.muted, 2, 1, Math.min(100, childTime * 0.1));
+                        if (!isLast) sketchLine(ctx, branchX, c.y - 6, branchX, c.y + 16, C.muted, 2, 1);
+                        await _handwrite(ctx, ch, branchX - 24, c.y, F.write, C.text, childTime * 0.8, true);
+                    } else {
+                        await animSketch(ctx, c.x + 8, c.y - 20, c.x + 8, c.y - 6, C.muted, 2, 1, Math.min(100, childTime * 0.1));
+                        await animSketch(ctx, c.x + 8, c.y - 6, c.x + 24, c.y - 6, C.muted, 2, 1, Math.min(100, childTime * 0.1));
+                        if (!isLast) sketchLine(ctx, c.x + 8, c.y - 6, c.x + 8, c.y + 16, C.muted, 2, 1);
+                        await _handwrite(ctx, ch, c.x + 32, c.y, F.write, C.text, childTime * 0.8);
+                    }
                     c.y += 28;
                 }
                 c.y += 8;
@@ -940,10 +1215,13 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'bracket': {
                 const items = cmd.items || [];
                 const label = cmd.label || '';
+                const isRTL = items.some(t => _hasArabic(t)) || _hasArabic(label);
                 const itemTime = animMs / items.length;
                 let startY = c.y;
+
                 for (const text of items) {
-                    await _handwrite(ctx, text, c.x + 20, c.y, F.write, C.text, itemTime);
+                    const txtX = isRTL ? c.x + maxW - 20 : c.x + 20;
+                    await _handwrite(ctx, text, txtX, c.y, F.write, C.text, itemTime, isRTL);
                     c.y += 28;
                 }
                 const endY = c.y - 28;
@@ -952,13 +1230,21 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 // Draw '{'
                 ctx.strokeStyle = C.muted;
                 ctx.beginPath();
-                ctx.moveTo(c.x + 12, startY - 14);
-                ctx.bezierCurveTo(c.x + 2, startY - 14, c.x + 2, midY - 6, c.x - 6, midY - 6);
-                ctx.bezierCurveTo(c.x + 2, midY - 6, c.x + 2, endY + 2, c.x + 12, endY + 2);
+                if (isRTL) {
+                    const bx = c.x + maxW - 12;
+                    ctx.moveTo(bx, startY - 14);
+                    ctx.bezierCurveTo(bx + 10, startY - 14, bx + 10, midY - 6, bx + 18, midY - 6);
+                    ctx.bezierCurveTo(bx + 10, midY - 6, bx + 10, endY + 2, bx, endY + 2);
+                } else {
+                    ctx.moveTo(c.x + 12, startY - 14);
+                    ctx.bezierCurveTo(c.x + 2, startY - 14, c.x + 2, midY - 6, c.x - 6, midY - 6);
+                    ctx.bezierCurveTo(c.x + 2, midY - 6, c.x + 2, endY + 2, c.x + 12, endY + 2);
+                }
                 ctx.stroke();
 
                 if (label) {
-                    await _handwrite(ctx, label, c.x + 16, endY + 24, F.labelBd, C.blue, 300);
+                    const lblX = isRTL ? c.x + maxW - 16 : c.x + 16;
+                    await _handwrite(ctx, label, lblX, endY + 24, F.labelBd, C.blue, 300, isRTL);
                     c.y += 24;
                 }
                 c.y += 8;
@@ -978,14 +1264,17 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             // ── HIGHLIGHT ────────────────────────────────────────────────────
             case 'highlight': {
                 const text = cmd.text || '';
+                const rtl = _hasArabic(text);
                 const colors = { yellow: C.yellow, green: C.green, blue: C.blue, red: C.red, orange: C.orange, pink: C.pink };
                 const col = colors[cmd.color] || C.yellow;
                 c.y += 8;
                 ctx.font = F.write;
                 const tw = ctx.measureText(text).width;
+                const hlX = rtl ? c.x + maxW - tw - 12 : c.x - 2;
                 ctx.fillStyle = col + '28';
-                ctx.fillRect(c.x - 2, c.y - 16, tw + 12, 26);
-                await _handwrite(ctx, text, c.x + 2, c.y, F.writeBd, col, animMs);
+                ctx.fillRect(hlX, c.y - 16, tw + 12, 26);
+                const textX = rtl ? c.x + maxW : c.x + 2;
+                await _handwrite(ctx, text, textX, c.y, F.writeBd, col, animMs, rtl);
                 c.y += 32;
                 break;
             }
@@ -994,11 +1283,24 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'definition': {
                 const term = cmd.term || '';
                 const meaning = cmd.meaning || '';
+                const rtl = _hasArabic(term) || _hasArabic(meaning);
                 c.y += 8;
-                await _handwrite(ctx, term, c.x, c.y, F.writeBd, C.blue, animMs * 0.3);
-                ctx.font = F.writeBd;
-                const tw = ctx.measureText(term).width;
-                await _handwrite(ctx, ':  ' + meaning, c.x + tw, c.y, F.write, C.text, animMs * 0.7);
+                if (rtl) {
+                    // RTL: term on right, meaning on left side
+                    const textX = c.x + maxW;
+                    await _handwrite(ctx, term, textX, c.y, F.writeBd, C.blue, animMs * 0.3, true);
+                    ctx.font = F.writeBd;
+                    const termW = ctx.measureText(term).width;
+                    const colonTxt = ' :  ';
+                    await _handwrite(ctx, colonTxt, textX - termW, c.y, F.write, C.text, 0, true);
+                    const colonW = ctx.measureText(colonTxt).width;
+                    await _handwrite(ctx, meaning, textX - termW - colonW, c.y, F.write, C.text, animMs * 0.7, true);
+                } else {
+                    await _handwrite(ctx, term, c.x, c.y, F.writeBd, C.blue, animMs * 0.3);
+                    ctx.font = F.writeBd;
+                    const tw = ctx.measureText(term).width;
+                    await _handwrite(ctx, ':  ' + meaning, c.x + tw, c.y, F.write, C.text, animMs * 0.7);
+                }
                 c.y += 32;
                 break;
             }
@@ -1008,22 +1310,43 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'vs_block': {
                 const left = cmd.left || '';
                 const right = cmd.right || '';
+                const rtlL = _hasArabic(left);
+                const rtlR = _hasArabic(right);
                 c.y += 12;
                 const bw = (maxW - 30) / 2;
+
+                // Auto-fit font helper
+                const getFitFont = (text) => {
+                    ctx.font = F.writeBd;
+                    const w = ctx.measureText(text).width;
+                    const pad = 16;
+                    if (w > bw - pad) {
+                        const size = Math.max(11, Math.floor(24 * (bw - pad) / w)); // floor size
+                        return `bold ${size}px "Cairo", "Patrick Hand", "Comic Sans MS", cursive`;
+                    }
+                    return F.writeBd;
+                };
+
+                const fontL = getFitFont(left);
+                const fontR = getFitFont(right);
+
                 // Left box
                 ctx.fillStyle = C.blue + '14';
                 ctx.fillRect(c.x, c.y - 14, bw, 40);
                 await animRect(ctx, c.x, c.y - 14, bw, 40, C.blue + '66', 1.5, 300);
-                await _handwrite(ctx, left, c.x + 8, c.y + 8, F.writeBd, C.blue, animMs * 0.3);
+                const leftX = rtlL ? c.x + bw - 8 : c.x + 8;
+                await _handwrite(ctx, left, leftX, c.y + 8, fontL, C.blue, animMs * 0.3, rtlL);
                 // VS
                 ctx.font = F.labelBd;
                 ctx.fillStyle = C.muted;
                 ctx.fillText('vs', c.x + bw + 6, c.y + 10);
                 // Right box
+                const bx2 = c.x + bw + 28;
                 ctx.fillStyle = C.orange + '14';
-                ctx.fillRect(c.x + bw + 28, c.y - 14, bw, 40);
-                await animRect(ctx, c.x + bw + 28, c.y - 14, bw, 40, C.orange + '66', 1.5, 300);
-                await _handwrite(ctx, right, c.x + bw + 36, c.y + 8, F.writeBd, C.orange, animMs * 0.3);
+                ctx.fillRect(bx2, c.y - 14, bw, 40);
+                await animRect(ctx, bx2, c.y - 14, bw, 40, C.orange + '66', 1.5, 300);
+                const rightX = rtlR ? bx2 + bw - 8 : bx2 + 8;
+                await _handwrite(ctx, right, rightX, c.y + 8, fontR, C.orange, animMs * 0.3, rtlR);
                 c.y += 50;
                 break;
             }
@@ -1060,35 +1383,78 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 const items = cmd.items || [];
                 if (!items.length) break;
                 c.y += 10;
+
+                const isRTL = items.some(item => _hasArabic(item));
                 const isVert = cmd.cmd === 'flow';
+
                 if (isVert) {
                     for (let fi = 0; fi < items.length; fi++) {
+                        const itemText = items[fi];
+                        const boxW = maxW - 40;
+                        const boxX = isRTL ? c.x + maxW - boxW : c.x + 10;
+
                         ctx.fillStyle = C.blue + '14';
-                        ctx.fillRect(c.x + 10, c.y - 8, maxW - 40, 28);
-                        await animRect(ctx, c.x + 10, c.y - 8, maxW - 40, 28, C.blue + '55', 1.5, 200);
-                        await _handwrite(ctx, items[fi], c.x + 18, c.y + 8, F.write, C.text, animMs / items.length * 0.7);
+                        ctx.fillRect(boxX, c.y - 8, boxW, 28);
+                        await animRect(ctx, boxX, c.y - 8, boxW, 28, C.blue + '55', 1.5, 200);
+                        // Text logic
+                        const textX = isRTL ? boxX + boxW - 8 : boxX + 8;
+                        await _handwrite(ctx, itemText, textX, c.y + 8, F.write, C.text, animMs / items.length * 0.7, isRTL);
                         c.y += 32;
+
+                        // Downward arrow
                         if (fi < items.length - 1) {
-                            await animSketch(ctx, c.x + maxW / 2, c.y - 4, c.x + maxW / 2, c.y + 10, C.arrow, 2, 1, 150);
-                            // Arrow tip
-                            await animSketch(ctx, c.x + maxW / 2 - 5, c.y + 5, c.x + maxW / 2, c.y + 10, C.arrow, 2, 1, 80);
-                            await animSketch(ctx, c.x + maxW / 2 + 5, c.y + 5, c.x + maxW / 2, c.y + 10, C.arrow, 2, 1, 80);
+                            const arrX = isRTL ? boxX + boxW / 2 : c.x + maxW / 2;
+                            await animSketch(ctx, arrX, c.y - 4, arrX, c.y + 10, C.arrow, 2, 1, 150);
+                            await animSketch(ctx, arrX - 5, c.y + 5, arrX, c.y + 10, C.arrow, 2, 1, 80);
+                            await animSketch(ctx, arrX + 5, c.y + 5, arrX, c.y + 10, C.arrow, 2, 1, 80);
                             c.y += 16;
                         }
                     }
                 } else {
                     // Horizontal process
-                    const boxW = Math.min(80, (maxW - items.length * 20) / items.length);
+                    ctx.font = F.label;
+                    const padding = 16;
+                    // Compute realistic box widths instead of hardcoded 80
+                    const widths = items.map(text => ctx.measureText(String(text).slice(0, 20)).width + padding * 2);
+                    const totalBoxW = widths.reduce((a, b) => a + b, 0);
+                    const gap = Math.max(10, (maxW - totalBoxW) / Math.max(1, items.length - 1));
+
+                    let currX = isRTL ? c.x + maxW : c.x;
+
                     for (let fi = 0; fi < items.length; fi++) {
-                        const bx = c.x + fi * (boxW + 20);
+                        const w = widths[fi];
+                        const bx = isRTL ? currX - w : currX;
+
                         ctx.fillStyle = C.green + '14';
-                        ctx.fillRect(bx, c.y, boxW, 28);
-                        await animRect(ctx, bx, c.y, boxW, 28, C.green + '55', 1.5, 200);
+                        ctx.fillRect(bx, c.y, w, 28);
+                        await animRect(ctx, bx, c.y, w, 28, C.green + '55', 1.5, 200);
+
                         ctx.font = F.label;
                         ctx.fillStyle = C.text;
-                        ctx.fillText(String(items[fi]).slice(0, 12), bx + 6, c.y + 18);
+                        const textStr = String(items[fi]).slice(0, 20);
+                        const strW = ctx.measureText(textStr).width;
+                        const textX = bx + (w - strW) / 2;
+
+                        if (isRTL) {
+                            ctx.textAlign = 'right';
+                            ctx.fillText(textStr, textX + strW, c.y + 18);
+                            ctx.textAlign = 'left';
+                        } else {
+                            ctx.fillText(textStr, textX, c.y + 18);
+                        }
+
+                        currX = isRTL ? currX - w : currX + w;
+
                         if (fi < items.length - 1) {
-                            await animSketch(ctx, bx + boxW + 4, c.y + 14, bx + boxW + 16, c.y + 14, C.arrow, 2, 1, 100);
+                            // Arrow
+                            if (isRTL) {
+                                await animSketch(ctx, currX - 4, c.y + 14, currX - gap + 4, c.y + 14, C.arrow, 2, 1, 100);
+                                drawArrowHead(ctx, currX - gap + 4, c.y + 14, Math.PI, 6, C.arrow);
+                            } else {
+                                await animSketch(ctx, currX + 4, c.y + 14, currX + gap - 4, c.y + 14, C.arrow, 2, 1, 100);
+                                drawArrowHead(ctx, currX + gap - 4, c.y + 14, 0, 6, C.arrow);
+                            }
+                            currX = isRTL ? currX - gap : currX + gap;
                         }
                     }
                     c.y += 44;
@@ -1129,14 +1495,20 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             // ── NOTE ─────────────────────────────────────────────────────────
             case 'note': {
                 const text = cmd.text || '';
+                const rtl = _hasArabic(text);
                 c.y += 10;
                 const lines = text.split('\n');
                 const bh = lines.length * 24 + 20;
                 ctx.fillStyle = C.yellow + '0a';
                 ctx.fillRect(c.x, c.y - 10, maxW - 10, bh);
-                sketchLine(ctx, c.x, c.y - 10, c.x, c.y - 10 + bh, C.yellow, 3, 1);
+                if (rtl) {
+                    sketchLine(ctx, c.x + maxW - 10, c.y - 10, c.x + maxW - 10, c.y - 10 + bh, C.yellow, 3, 1);
+                } else {
+                    sketchLine(ctx, c.x, c.y - 10, c.x, c.y - 10 + bh, C.yellow, 3, 1);
+                }
                 for (const ln of lines) {
-                    await _handwrite(ctx, ln, c.x + 12, c.y + 6, F.write, C.text, animMs / lines.length);
+                    const lineX = rtl ? c.x + maxW - 22 : c.x + 12;
+                    await _handwrite(ctx, ln, lineX, c.y + 6, F.write, C.text, animMs / lines.length, rtl);
                     c.y += 24;
                 }
                 c.y += 16;
@@ -1147,14 +1519,24 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             case 'quote': {
                 const text = cmd.text || '';
                 const author = cmd.author || '';
+                const rtl = _hasArabic(text);
                 c.y += 10;
                 ctx.font = F.title;
                 ctx.fillStyle = C.muted + '44';
-                ctx.fillText('"', c.x, c.y + 8);
-                await _handwrite(ctx, text, c.x + 20, c.y, F.write, C.text + 'cc', animMs * 0.7);
-                if (author) {
-                    c.y += 28;
-                    await _handwrite(ctx, '— ' + author, c.x + 20, c.y, F.label, C.muted, animMs * 0.3);
+                if (rtl) {
+                    ctx.fillText('"', c.x + maxW, c.y + 8);
+                    await _handwrite(ctx, text, c.x + maxW - 20, c.y, F.write, C.text + 'cc', animMs * 0.7, true);
+                    if (author) {
+                        c.y += 28;
+                        await _handwrite(ctx, '— ' + author, c.x + maxW - 20, c.y, F.label, C.muted, animMs * 0.3, true);
+                    }
+                } else {
+                    ctx.fillText('"', c.x, c.y + 8);
+                    await _handwrite(ctx, text, c.x + 20, c.y, F.write, C.text + 'cc', animMs * 0.7);
+                    if (author) {
+                        c.y += 28;
+                        await _handwrite(ctx, '— ' + author, c.x + 20, c.y, F.label, C.muted, animMs * 0.3);
+                    }
                 }
                 c.y += 30;
                 break;
@@ -1400,10 +1782,19 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
     }), [enqueue]);
 
     return (
-        <canvas
-            ref={canvasRef}
-            style={{ display: 'block', borderRadius: '14px', background: C.bg }}
-        />
+        <div className="relative w-full h-full">
+            {/* Hidden text to force browser to preload fonts before canvas draws */}
+            <div style={{ fontFamily: 'Cairo', position: 'absolute', opacity: 0, pointerEvents: 'none', userSelect: 'none' }}>
+                preloading arabic font cairo مجانا
+            </div>
+            <div style={{ fontFamily: 'Patrick Hand', position: 'absolute', opacity: 0, pointerEvents: 'none', userSelect: 'none' }}>
+                preloading patrick hand
+            </div>
+            <canvas
+                ref={canvasRef}
+                style={{ display: 'block', borderRadius: '14px', background: C.bg }}
+            />
+        </div>
     );
 });
 

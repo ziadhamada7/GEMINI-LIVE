@@ -2,11 +2,14 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/i18n/LanguageContext';
+import { LANGUAGES } from '@/i18n/locales';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 export default function SetupPage() {
   const router = useRouter();
+  const { t, lang, setLang } = useLanguage();
   const [topic, setTopic] = useState('');
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -24,6 +27,7 @@ export default function SetupPage() {
     try {
       const formData = new FormData();
       formData.append('topic', topic.trim());
+      formData.append('language', lang);
       for (const f of files) {
         formData.append('files', f);
       }
@@ -40,12 +44,13 @@ export default function SetupPage() {
         return;
       }
 
-      // Store the lesson plan and navigate to lesson page
+      // Store the lesson plan, language, and navigate to lesson page
       sessionStorage.setItem('lessonPlan', JSON.stringify(data.plan));
       sessionStorage.setItem('lessonId', data.lessonId);
+      sessionStorage.setItem('lessonLang', lang);
       router.push('/lesson');
     } catch (err) {
-      setError('Failed to connect: ' + err.message);
+      setError(t('setup.errorConnect') + err.message);
       setLoading(false);
     }
   };
@@ -59,21 +64,37 @@ export default function SetupPage() {
         <header className="setup-header">
           <div className="logo">
             <div className="logo-icon">✦</div>
-            <span className="logo-text">AI Tutor</span>
+            <span className="logo-text">{t('setup.logo')}</span>
           </div>
-          <h1>Your Personal AI Teacher</h1>
-          <p>Enter a topic or upload your lecture materials, and the AI will teach you on a live whiteboard — just like a real tutor.</p>
+          <h1>{t('setup.title')}</h1>
+          <p>{t('setup.subtitle')}</p>
         </header>
 
         {/* Setup Card */}
         <div className="setup-card">
+          {/* Language Selector */}
+          <div className="input-group">
+            <label htmlFor="language">{t('setup.langLabel')}</label>
+            <select
+              id="language"
+              className="lang-select"
+              value={lang}
+              onChange={e => setLang(e.target.value)}
+              disabled={loading}
+            >
+              {Object.entries(LANGUAGES).map(([code, meta]) => (
+                <option key={code} value={code}>{meta.label}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Topic Input */}
           <div className="input-group">
-            <label htmlFor="topic">📚 Lesson Topic</label>
+            <label htmlFor="topic">{t('setup.topicLabel')}</label>
             <input
               id="topic"
               type="text"
-              placeholder="e.g. Newton's Laws of Motion, Photosynthesis, World War II …"
+              placeholder={t('setup.topicPlaceholder')}
               value={topic}
               onChange={e => setTopic(e.target.value)}
               disabled={loading}
@@ -83,7 +104,7 @@ export default function SetupPage() {
 
           {/* File Upload */}
           <div className="input-group">
-            <label>📎 Upload Materials <span className="label-hint">(optional)</span></label>
+            <label>{t('setup.uploadLabel')} <span className="label-hint">{t('setup.uploadHint')}</span></label>
             <div
               className="upload-area"
               onClick={() => fileRef.current?.click()}
@@ -107,7 +128,7 @@ export default function SetupPage() {
               ) : (
                 <div className="upload-placeholder">
                   <span className="upload-icon">📄</span>
-                  <span>Click to upload PDFs, notes, or lecture slides</span>
+                  <span>{t('setup.uploadPlaceholder')}</span>
                 </div>
               )}
             </div>
@@ -125,10 +146,10 @@ export default function SetupPage() {
             {loading ? (
               <span className="btn-loading">
                 <span className="spinner" />
-                Preparing your lesson…
+                {t('setup.loading')}
               </span>
             ) : (
-              <>🎓 Start Lesson</>
+              <>{t('setup.startBtn')}</>
             )}
           </button>
         </div>
@@ -137,18 +158,18 @@ export default function SetupPage() {
         <div className="features">
           <div className="feature">
             <span className="feature-icon">🎤</span>
-            <h3>Voice Interaction</h3>
-            <p>Interrupt anytime to ask questions</p>
+            <h3>{t('setup.feat1Title')}</h3>
+            <p>{t('setup.feat1Desc')}</p>
           </div>
           <div className="feature">
             <span className="feature-icon">🖍️</span>
-            <h3>Live Whiteboard</h3>
-            <p>AI writes and draws in real-time</p>
+            <h3>{t('setup.feat2Title')}</h3>
+            <p>{t('setup.feat2Desc')}</p>
           </div>
           <div className="feature">
             <span className="feature-icon">📐</span>
-            <h3>Charts & Diagrams</h3>
-            <p>Visual explanations with diagrams</p>
+            <h3>{t('setup.feat3Title')}</h3>
+            <p>{t('setup.feat3Desc')}</p>
           </div>
         </div>
       </main>
