@@ -25,8 +25,23 @@ export default function LessonPage() {
     const [sectionTitles, setSectionTitles] = useState([]);
     const [lessonSources, setLessonSources] = useState([]);
     const [planData, setPlanData] = useState(null); // Save original plan for outline
-    const [activeTool, setActiveTool] = useState('Pointer');
+    const [activeTool, setActiveTool] = useState(null);
     const [lessonTimeMs, setLessonTimeMs] = useState(0);
+    const [rotateDismissed, setRotateDismissed] = useState(false);
+
+    // Dynamic board sizing
+    const [boardWidth, setBoardWidth] = useState(880);
+    const [boardHeight, setBoardHeight] = useState(520);
+    const boardAreaRef = useRef(null);
+
+    // Selection tool state
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectionRect, setSelectionRect] = useState(null);
+    const [showCommentPopup, setShowCommentPopup] = useState(false);
+    const [commentText, setCommentText] = useState('');
+    const [isSendingExplain, setIsSendingExplain] = useState(false);
+    const selectionStartRef = useRef(null);
+    const overlayRef = useRef(null);
 
     const wsRef = useRef(null);
     const boardRef = useRef(null);
@@ -36,6 +51,40 @@ export default function LessonPage() {
     const planRef = useRef(null);
     const lessonLangRef = useRef(lang);
     const { enqueueItem, clearAudioQueue, startMic, stopMic, micActive, setGainValue } = useAudio();
+
+    // ── Dynamic board sizing ──────────────────────────────────────────────
+    const ASPECT = 88 / 52; // ~1.692
+    useEffect(() => {
+        const el = boardAreaRef.current;
+        if (!el) return;
+        const compute = () => {
+            // Available space minus padding (24px each side) and controls (~80px)
+            const pad = 48;
+            const controlsH = 80;
+            const availW = el.clientWidth - pad;
+            const availH = el.clientHeight - pad - controlsH;
+            if (availW <= 0 || availH <= 0) return;
+            let w, h;
+            if (availW / availH > ASPECT) {
+                // Height-constrained
+                h = availH;
+                w = Math.round(h * ASPECT);
+            } else {
+                // Width-constrained
+                w = availW;
+                h = Math.round(w / ASPECT);
+            }
+            // Clamp minimums
+            w = Math.max(400, w);
+            h = Math.max(Math.round(400 / ASPECT), h);
+            setBoardWidth(w);
+            setBoardHeight(h);
+        };
+        compute();
+        const ro = new ResizeObserver(compute);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     // ── Timer Logic ───────────────────────────────────────────────────────
     useEffect(() => {
@@ -236,6 +285,7 @@ export default function LessonPage() {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
         wsRef.current.send(JSON.stringify({ type: 'pause' }));
         clearAudioQueue();
+        if (boardRef.current) boardRef.current.freeze();
     }, [clearAudioQueue]);
 
     const handlePlay = useCallback(() => {
@@ -277,6 +327,111 @@ export default function LessonPage() {
     const isQA = ['listening', 'answering', 'confirming'].includes(status);
     const canToggleMic = status === 'teaching' || status === 'confirming' || (status === 'listening' && micActive);
 
+    // ── Selection Tool Handlers ───────────────────────────────────────────
+    const handleSelectToolToggle = useCallback(() => {
+        if (selectionMode) {
+            // Deactivate
+            setSelectionMode(false);
+            setSelectionRect(null);
+            setShowCommentPopup(false);
+            setCommentText('');
+            setActiveTool(null);
+        } else {
+            // Activate: pause lesson first
+            setSelectionMode(true);
+            setActiveTool('Select');
+            if (status === 'teaching') {
+                handlePause();
+            }
+        }
+    }, [selectionMode, status, handlePause]);
+
+    const handleOverlayMouseDown = useCallback((e) => {
+        if (!selectionMode || showCommentPopup) return;
+        const overlay = overlayRef.current;
+        if (!overlay) return;
+        const rect = overlay.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        selectionStartRef.current = { x, y };
+        setSelectionRect({ x, y, w: 0, h: 0 });
+    }, [selectionMode, showCommentPopup]);
+
+    const handleOverlayMouseMove = useCallback((e) => {
+        if (!selectionStartRef.current || !selectionMode) return;
+        const overlay = overlayRef.current;
+        if (!overlay) return;
+        const rect = overlay.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const startX = selectionStartRef.current.x;
+        const startY = selectionStartRef.current.y;
+        setSelectionRect({
+            x: Math.min(startX, x),
+            y: Math.min(startY, y),
+            w: Math.abs(x - startX),
+            h: Math.abs(y - startY),
+        });
+    }, [selectionMode]);
+
+    const handleOverlayMouseUp = useCallback(() => {
+        if (!selectionStartRef.current || !selectionMode) return;
+        selectionStartRef.current = null;
+        // Show comment popup if selection is big enough
+        if (selectionRect && selectionRect.w > 20 && selectionRect.h > 20) {
+            setShowCommentPopup(true);
+        } else {
+            setSelectionRect(null);
+        }
+    }, [selectionMode, selectionRect]);
+
+    const handleCancelSelection = useCallback(() => {
+        setSelectionRect(null);
+        setShowCommentPopup(false);
+        setCommentText('');
+    }, []);
+
+    const handleSendExplain = useCallback(() => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !selectionRect) return;
+        setIsSendingExplain(true);
+
+        // Capture the selected area from the canvas
+        // We need to map the overlay coords to canvas coords
+        const wrapper = overlayRef.current?.parentElement;
+        const canvasEl = boardRef.current?.getCanvasEl?.();
+        if (!wrapper || !canvasEl) { setIsSendingExplain(false); return; }
+
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const canvasDisplayW = canvasEl.offsetWidth;
+        const canvasDisplayH = canvasEl.offsetHeight;
+        const canvasActualW = boardWidth; // logical width
+        const canvasActualH = boardHeight; // logical height
+
+        // Scale overlay coords to logical canvas coords
+        const scaleX = canvasActualW / canvasDisplayW;
+        const scaleY = canvasActualH / canvasDisplayH;
+        const cx = selectionRect.x * scaleX;
+        const cy = selectionRect.y * scaleY;
+        const cw = selectionRect.w * scaleX;
+        const ch = selectionRect.h * scaleY;
+
+        const imageBase64 = boardRef.current?.getCanvasSnapshot?.(cx, cy, cw, ch) || null;
+
+        wsRef.current.send(JSON.stringify({
+            type: 'explain_selection',
+            image: imageBase64,
+            comment: commentText.trim() || '',
+        }));
+
+        // Clean up
+        setShowCommentPopup(false);
+        setSelectionRect(null);
+        setCommentText('');
+        setSelectionMode(false);
+        setActiveTool(null);
+        setIsSendingExplain(false);
+    }, [selectionRect, commentText]);
+
     const currentTheme = (typeof window !== 'undefined' ? localStorage.getItem('tutor_theme') : '') || 'light-dot';
     const isDark = currentTheme.includes('dark');
 
@@ -291,6 +446,17 @@ export default function LessonPage() {
 
     return (
         <div className="lesson-layout">
+
+            {/* ─── ROTATE PROMPT (mobile portrait) ─── */}
+            {!rotateDismissed && (
+                <div className="rotate-prompt">
+                    <div className="rotate-icon">📱</div>
+                    <p>Rotate your phone to landscape for the best whiteboard experience</p>
+                    <button className="dismiss-btn" onClick={() => setRotateDismissed(true)}>
+                        Continue in Portrait
+                    </button>
+                </div>
+            )}
 
             {/* ─── TOP BAR ─── */}
             <header className="topbar">
@@ -320,32 +486,89 @@ export default function LessonPage() {
 
             {/* ─── LEFT TOOLBAR ─── */}
             <aside className="toolbar">
-                {['Pointer', 'Pen', 'Shapes', 'Text', 'Eraser'].map(tool => (
-                    <div
-                        key={tool}
-                        className={`tool-icon ${activeTool === tool ? 'active' : ''}`}
-                        onClick={() => setActiveTool(tool)}
-                        title={tool}
-                    >
-                        {tool === 'Pointer' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" /></svg>}
-                        {tool === 'Pen' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>}
-                        {tool === 'Shapes' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /></svg>}
-                        {tool === 'Text' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7V4h16v3M9 20h6M12 4v16" /></svg>}
-                        {tool === 'Eraser' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 20H7L3 16C2 15 2 13 3 12L13 2l6 6-9 9" /></svg>}
-                    </div>
-                ))}
+                {/* Select & Comment Tool */}
+                <div
+                    className={`tool-icon ${selectionMode ? 'active' : ''}`}
+                    onClick={handleSelectToolToggle}
+                    title="Select & Comment"
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeDasharray="4 2" />
+                        <path d="M9 14l2 2 4-4" />
+                    </svg>
+                </div>
                 <div className="tool-divider" />
-                <div className="tool-icon" title="Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg></div>
+                <div className="tool-icon" title="Settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+                </div>
             </aside>
 
             {/* ─── WHITEBOARD AREA ─── */}
-            <main className="board-area">
-                <div className={`whiteboard-wrapper board-texture-${currentTheme.split('-')[1] || currentTheme}`}>
-                    <Whiteboard ref={boardRef} width={880} height={520} />
+            <main className="board-area" ref={boardAreaRef}>
+                <div className={`whiteboard-wrapper board-texture-${currentTheme.split('-')[1] || currentTheme}`} style={{ position: 'relative', maxWidth: boardWidth + 'px' }}>
+                    <Whiteboard ref={boardRef} width={boardWidth} height={boardHeight} />
+
+                    {/* Selection Overlay */}
+                    {selectionMode && (
+                        <div
+                            ref={overlayRef}
+                            className="selection-overlay"
+                            onMouseDown={handleOverlayMouseDown}
+                            onMouseMove={handleOverlayMouseMove}
+                            onMouseUp={handleOverlayMouseUp}
+                            onMouseLeave={handleOverlayMouseUp}
+                        >
+                            {selectionRect && selectionRect.w > 2 && selectionRect.h > 2 && (
+                                <div
+                                    className="selection-rect"
+                                    style={{
+                                        left: selectionRect.x + 'px',
+                                        top: selectionRect.y + 'px',
+                                        width: selectionRect.w + 'px',
+                                        height: selectionRect.h + 'px',
+                                    }}
+                                />
+                            )}
+                        </div>
+                    )}
+
+                    {/* Comment Popup */}
+                    {showCommentPopup && selectionRect && (
+                        <div
+                            className="comment-popup"
+                            style={{
+                                left: Math.min(selectionRect.x + selectionRect.w + 12, 600) + 'px',
+                                top: Math.max(selectionRect.y, 10) + 'px',
+                            }}
+                        >
+                            <div className="comment-popup-header">
+                                <span>💬 Comment</span>
+                                <button className="comment-close-btn" onClick={handleCancelSelection}>✕</button>
+                            </div>
+                            <textarea
+                                className="comment-input"
+                                placeholder="Type your question about this area... (leave empty to just explain)"
+                                value={commentText}
+                                onChange={e => setCommentText(e.target.value)}
+                                rows={3}
+                                autoFocus
+                            />
+                            <div className="comment-actions">
+                                <button
+                                    className="comment-send-btn"
+                                    onClick={handleSendExplain}
+                                    disabled={isSendingExplain}
+                                >
+                                    {isSendingExplain ? 'Sending...' : 'Send'}
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13" /><path d="M22 2L15 22L11 13L2 9L22 2Z" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* ─── FLOATING CONTROLS ─── */}
-                <div className="floating-controls">
+                <div className="floating-controls" style={{ maxWidth: boardWidth + 'px' }}>
 
                     {/* Timer */}
                     <div className="timer">{formatTime(lessonTimeMs)}</div>

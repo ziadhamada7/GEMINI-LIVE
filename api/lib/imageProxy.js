@@ -6,6 +6,9 @@
  */
 
 import google from 'googlethis';
+import { GoogleGenAI } from '@google/genai';
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions: { apiVersion: 'v1beta' } });
 
 // Simple in-memory cache to avoid refetching the same query
 const cache = new Map();
@@ -46,12 +49,34 @@ export async function fetchImage(query) {
 }
 
 /**
- * Advanced Google Image Search using `googlethis` library
+ * Uses Gemini to extract a highly optimized 3-6 keyword Google Image query
+ */
+async function enhanceSearchQuery(rawQuery) {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `You are an expert at writing Google Image Search queries.
+The user needs an educational diagram for their live lecture.
+Original context and description: "${rawQuery}"
+Rewrite this into a highly effective, concise Google Image Search query (3-6 keywords max) to find a high-quality, professional educational diagram or illustration.
+Output ONLY the query string. Do not add quotes or markdown.`
+        });
+        const enhanced = response.text.trim();
+        console.log(`[imageProxy] Gemini enhanced query: "${rawQuery}" -> "${enhanced}"`);
+        return enhanced || rawQuery;
+    } catch (err) {
+        console.warn(`[imageProxy] enhanceSearchQuery failed, using raw query: ${err.message}`);
+        return rawQuery; // fallback to original
+    }
+}
+
+/**
+ * Advanced Google Image Search using \`googlethis\` library
  */
 async function tryGoogleAdvanced(query) {
     try {
-        // Clean query to ensure better image results
-        const cleanQuery = query.replace(/ educational diagram illustration/i, ' diagram').trim();
+        // Use AI to clean and optimize the query for Google Images
+        const optimizedQuery = await enhanceSearchQuery(query);
 
         const options = {
             page: 0,
@@ -62,7 +87,7 @@ async function tryGoogleAdvanced(query) {
             }
         };
 
-        const images = await google.image(cleanQuery, options);
+        const images = await google.image(optimizedQuery, options);
 
         if (images && images.length > 0) {
             // Try up to 3 images in case the first one is a dead link

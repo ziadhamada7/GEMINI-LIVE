@@ -124,22 +124,32 @@ class TeachingSession {
 
     // ── Pause / Play ─────────────────────────────────────────────────────
     handlePause() {
-        if (this.state !== S.TEACHING) return;
-        console.log('[teach] PAUSE');
+        if (this.state !== S.TEACHING && this.state !== S.ANSWERING) return;
+        console.log('[teach] INSTANT PAUSE — closing session immediately');
         this._paused = true;
+        this._pausedAtStep = this.segmentIdx; // remember where we were
+        // Close the Gemini session to stop audio streaming immediately
+        this._interrupted = true;
+        this._closeSectionSession();
+        send(this.ws, { type: 'freeze' }); // freeze whiteboard animations
         this.setState(S.PAUSED);
     }
 
     handlePlay() {
         if (this.state !== S.PAUSED) return;
-        console.log('[teach] PLAY (resume from pause)');
+        console.log(`[teach] PLAY — resuming from step ${this._pausedAtStep + 1}`);
         this._paused = false;
-        this.setState(S.TEACHING);
+        // Navigate to the step we paused at (restarts that step)
+        this._skipToStep = this._pausedAtStep;
+        this._interrupted = false;
+        // Unblock any waiting resolve
         if (this._pauseResolve) {
             const r = this._pauseResolve;
             this._pauseResolve = null;
             r();
         }
+        this._pendingResume?.();
+        this.setState(S.TEACHING);
     }
 
     _waitIfPaused() {
@@ -316,7 +326,8 @@ class TeachingSession {
                 if (st.cmd && !this.drawnSegments.has(stepId)) {
                     // pre-fetch images if any
                     if (st.cmd.cmd === 'image' && st.cmd.query) {
-                        const dataUrl = await fetchImage(st.cmd.query);
+                        const enhancedQuery = `${this.plan?.title || ''} ${st.cmd.query}`.trim();
+                        const dataUrl = await fetchImage(enhancedQuery);
                         if (dataUrl) st.cmd.dataUrl = dataUrl;
                     }
                     if (st.cmd) fastDrawCmds.push(st.cmd);
@@ -353,11 +364,12 @@ class TeachingSession {
 
                 console.log(`[teach] Step ${si + 1}/${steps.length}: speech="${(step.speech || '').slice(0, 50)}..." cmd=${step.cmd?.cmd || 'NONE'}`);
 
-                // ── Send draw FIRST (arrives before audio starts) ────────
+                // Send draw FIRST (arrives before audio starts) ────────
                 if (step.cmd && !this.drawnSegments.has(stepId)) {
                     // Pre-fetch image if needed
                     if (step.cmd.cmd === 'image' && step.cmd.query) {
-                        const dataUrl = await fetchImage(step.cmd.query);
+                        const enhancedQuery = `${this.plan?.title || ''} ${step.cmd.query}`.trim();
+                        const dataUrl = await fetchImage(enhancedQuery);
                         if (dataUrl) {
                             step.cmd.dataUrl = dataUrl;
                         } else {
@@ -604,6 +616,97 @@ class TeachingSession {
         }
     }
 
+    // ── Explain Selection ─────────────────────────────────────────────────
+    async handleExplainSelection(imageBase64, comment) {
+        console.log(`[teach] Explain selection — comment: "${(comment || '').slice(0, 60)}"`);
+
+        // Pause if currently teaching
+        if (this.state === S.TEACHING) {
+            this.handlePause();
+        }
+
+        // Close any existing QA session
+        this._closeQA();
+
+        const sectionTitle = this.plan?.sections?.[this.sectionIdx]?.title || 'the topic';
+        const lessonTitle = this.plan?.title || 'the lesson';
+
+        let langSuffix = '';
+        if (this.language !== 'en') {
+            if (this.language === 'ar-eg') langSuffix = ' Respond in Egyptian Arabic dialect (عامية مصرية).';
+            else if (this.language === 'ar-sa') langSuffix = ' Respond in Saudi Arabic dialect.';
+            else langSuffix = ` Respond in ${this.language}.`;
+        }
+
+        const userPrompt = comment && comment.trim()
+            ? `The student selected a part of the whiteboard and asked: "${comment}". Look at the image and answer their question. Be concise but helpful (2-4 sentences).${langSuffix}`
+            : `The student selected a part of the whiteboard and wants you to explain it. Look at the image and explain what you see clearly and concisely (2-4 sentences).${langSuffix}`;
+
+        const sys = `You are a helpful AI tutor teaching "${lessonTitle}", currently on the section "${sectionTitle}". The student has highlighted a specific area on the whiteboard and wants your explanation. Be concise and helpful.${langSuffix}`;
+
+        this.setState(S.LISTENING);
+
+        const currentConnectId = ++this.qaConnectId;
+        try {
+            const requestConfig = {
+                responseModalities: [Modality.AUDIO],
+                systemInstruction: { parts: [{ text: sys }] },
+            };
+            if (this.voice) {
+                requestConfig.speechConfig = {
+                    voiceConfig: { prebuiltVoiceConfig: { voiceName: this.voice } },
+                };
+            }
+
+            const session = await ai.live.connect({
+                model: MODEL,
+                config: requestConfig,
+                callbacks: {
+                    onopen: () => { },
+                    onmessage: (msg) => {
+                        if (msg.setupComplete) {
+                            this.qaReady = true;
+                            // Send the image + question
+                            if (this.qaSession) {
+                                const parts = [];
+                                if (imageBase64) {
+                                    parts.push({ inlineData: { mimeType: 'image/png', data: imageBase64 } });
+                                }
+                                parts.push({ text: userPrompt });
+                                this.qaSession.sendClientContent({
+                                    turns: [{ role: 'user', parts }],
+                                    turnComplete: true,
+                                });
+                            }
+                        }
+                        if (msg.serverContent?.modelTurn?.parts) {
+                            for (const p of msg.serverContent.modelTurn.parts) {
+                                if (p.inlineData?.data) {
+                                    send(this.ws, { type: 'audio', data: p.inlineData.data, mimeType: p.inlineData.mimeType });
+                                    if (this.state === S.LISTENING) this.setState(S.ANSWERING);
+                                }
+                            }
+                        }
+                        if (msg.serverContent?.turnComplete) {
+                            if (this.state === S.ANSWERING) { this.setState(S.CONFIRMING); }
+                        }
+                    },
+                    onerror: () => { this._closeQA(); this.handleResume(); },
+                    onclose: () => { this.qaSession = null; this.qaReady = false; },
+                },
+            });
+
+            if (currentConnectId !== this.qaConnectId || this.shouldStop) {
+                try { session.close(); } catch { }
+                return;
+            }
+            this.qaSession = session;
+        } catch (err) {
+            console.error('[teach] Explain selection fail:', err.message);
+            send(this.ws, { type: 'error', data: 'Explain failed: ' + err.message });
+        }
+    }
+
     // ── Q&A ───────────────────────────────────────────────────────────────
     async _openQASession() {
         const sectionTitle = this.plan?.sections?.[this.sectionIdx]?.title || 'the topic';
@@ -743,6 +846,7 @@ export default async function handler(ws) {
             case 'skip_section': s.handleSkipSection(msg.index); break;
             case 'stop': s.stop(); break;
             case 'quiz_answer': s.handleQuizAnswer(msg.answer); break;
+            case 'explain_selection': s.handleExplainSelection(msg.image, msg.comment).catch(e => { console.error('[teach]', e); send(ws, { type: 'error', data: e.message }); }); break;
         }
     });
     ws.on('close', () => { clearInterval(hb); s.cleanup(); });

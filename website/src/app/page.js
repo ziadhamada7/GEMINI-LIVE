@@ -113,137 +113,132 @@ export default function SetupPage() {
     }
   };
 
+  const handlePredefinedTopic = async (topicId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch the pre-generated lesson plans
+      const res = await fetch('/topics.json');
+      const topicsData = await res.json();
+
+      const plan = topicsData[topicId];
+      if (!plan) {
+        throw new Error('Lesson plan not found for this topic.');
+      }
+
+      // Store the lesson plan, language, and navigate to lesson page
+      sessionStorage.setItem('lessonPlan', JSON.stringify(plan));
+      sessionStorage.setItem('lessonId', `predef-${Date.now()}`);
+      sessionStorage.setItem('lessonLang', lang);
+
+      // Store source references
+      sessionStorage.setItem('lessonSources', JSON.stringify([{ name: topicId, type: 'Predefined' }]));
+
+      router.push('/lesson');
+    } catch (err) {
+      setError('Could not load predefined lesson: ' + err.message);
+      setLoading(false);
+    }
+  };
+
   return (
-    <>
-      <main className="setup-page">
-        {/* Hero Header */}
-        <header className="setup-header">
-          <div className="logo-icon">✦</div>
-          <h1>AI Tutor Platform</h1>
-          <p>Learn any topic naturally. Upload a document or type a subject, and your AI tutor will explain it live on a digital whiteboard.</p>
+    <main className="home-container">
+      {/* Background decorations if any */}
+
+      {/* Floating Topics */}
+      <div className="floating-topic top-left" onClick={() => handlePredefinedTopic('Python Basics')}>
+        <div className="topic-img python" />
+        <span>Python Basics</span>
+      </div>
+      <div className="floating-topic bottom-left" onClick={() => handlePredefinedTopic('Ancient Egypt')}>
+        <div className="topic-img egypt" />
+        <span>Ancient Egypt</span>
+      </div>
+      <div className="floating-topic top-right" onClick={() => handlePredefinedTopic('Photosynthesis')}>
+        <div className="topic-img photo" />
+        <span>Photosynthesis</span>
+      </div>
+      <div className="floating-topic bottom-right" onClick={() => handlePredefinedTopic('Basic Algebra')}>
+        <div className="topic-img math" />
+        <span>Basic Algebra</span>
+      </div>
+
+      <div className="home-content">
+        <header className="home-header">
+          <div className="home-logo">
+            <div className="logo-g">G</div>
+            <span style={{ fontWeight: 600 }}>Gemini Live</span> <span style={{ fontWeight: 300 }}>API</span>
+          </div>
+          <p className="home-subtitle">Your Interactive AI Tutor for Live Learning</p>
         </header>
 
-        {/* Settings & Setup Card */}
-        <div className="glass-panel setup-card">
+        <h1 className="home-title">What would you like to learn today?</h1>
 
-          {/* Topic / File Upload */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
-            <div className="input-group">
-              <label htmlFor="topic">What do you want to learn?</label>
-              <input
-                id="topic"
-                type="text"
-                placeholder="e.g. Quantum Mechanics, Cell Division..."
-                value={topic}
-                onChange={e => setTopic(e.target.value)}
-                disabled={loading}
-                autoFocus
-              />
-            </div>
+        <div className="home-form-card glass-panel">
 
-            <div className="input-group">
-              <label>Or Upload Source Material <span style={{ textTransform: 'none', fontWeight: 400, color: 'var(--text-muted)' }}>(PDF, TXT)</span></label>
-              <div
-                className="upload-area"
-                onClick={() => fileRef.current?.click()}
-              >
-                <input
-                  ref={fileRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.txt,.md,.doc,.docx"
-                  style={{ display: 'none' }}
-                  onChange={handleFiles}
-                />
-                {files.length > 0 ? (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                    {files.map((f, i) => (
-                      <span key={i} className="file-chip">{f.name}</span>
-                    ))}
-                  </div>
-                ) : (
-                  <div>
-                    <span className="upload-icon">📄</span>
-                    <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Click to browse files</span>
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="home-input-row">
+            <input
+              type="text"
+              placeholder="Enter a topic..."
+              className="home-topic-input"
+              value={topic}
+              onChange={e => setTopic(e.target.value)}
+              disabled={loading}
+              autoFocus
+            />
+            <span className="home-or-text">or</span>
+            <button className="home-upload-btn" onClick={() => fileRef.current?.click()} disabled={loading}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+              Upload PDF
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              accept=".pdf,.txt,.md,.doc,.docx"
+              style={{ display: 'none' }}
+              onChange={handleFiles}
+            />
           </div>
 
-          <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '8px 0' }} />
+          {files.length > 0 && (
+            <div className="home-files-list">
+              {files.map((f, i) => <span key={i} className="file-chip">{f.name}</span>)}
+            </div>
+          )}
 
-          {/* Configuration Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+          <div className="home-divider">
+            <span>CHOOSE</span>
+          </div>
 
-            {/* Theme Selection */}
-            <div className="input-group">
-              <label>Board Theme</label>
-              <div className="options-grid">
-                {THEMES.map(th => (
-                  <div
-                    key={th.id}
-                    className={`option-box ${selectedTheme === th.id ? 'active' : ''}`}
-                    onClick={() => handleThemeChange(th.id)}
-                  >
-                    <div style={{
-                      width: '20px', height: '20px', borderRadius: '50%', border: '1px solid var(--border-strong)',
-                      background: th.mode === 'dark' ? '#1e293b' : '#ffffff',
-                      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)'
-                    }} />
-                    <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>{th.label}</span>
-                  </div>
+          <div className="home-dropdowns-row">
+            <div className="home-dropdown-group">
+              <label>Language</label>
+              <select className="home-select" value={lang} onChange={e => setLang(e.target.value)} disabled={loading}>
+                <option value="" disabled>Select Language</option>
+                {Object.entries(LANGUAGES).map(([code, meta]) => (
+                  <option key={code} value={code}>{meta.label}</option>
                 ))}
-              </div>
+              </select>
             </div>
-
-            {/* Voice & Language Selection */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div className="input-group">
-                <label htmlFor="language">Language</label>
-                <select
-                  id="language"
-                  value={lang}
-                  onChange={e => setLang(e.target.value)}
-                  disabled={loading}
-                >
-                  {Object.entries(LANGUAGES).map(([code, meta]) => (
-                    <option key={code} value={code}>{meta.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="input-group">
-                <label>AI Voice Persona</label>
-                <select
-                  value={selectedVoice}
-                  onChange={e => handleVoiceChange(e.target.value)}
-                  style={{ padding: '12px 16px', background: 'var(--bg-panel-solid)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-md)' }}
-                >
-                  {VOICES.map(v => (
-                    <option key={v.id} value={v.id}>{v.label} — {v.desc}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="home-dropdown-group">
+              <label>AI Tutor</label>
+              <select className="home-select" value={selectedVoice} onChange={e => handleVoiceChange(e.target.value)} disabled={loading}>
+                <option value="" disabled>Select AI Professor</option>
+                {VOICES.map(v => (
+                  <option key={v.id} value={v.id}>{v.label} — {v.desc}</option>
+                ))}
+              </select>
             </div>
-
           </div>
 
-          {/* Error */}
-          {error && <div className="error-toast">⚠️ {error}</div>}
-
-          {/* Start Button */}
-          <button
-            className="start-btn"
-            onClick={handleStart}
-            disabled={(!topic.trim() && files.length === 0) || loading}
-            style={{ marginTop: '16px' }}
-          >
-            {loading ? 'Analyzing Content & Building Lesson...' : 'Start Live Session ✦'}
+          <button className="home-start-btn" onClick={handleStart} disabled={(!topic.trim() && files.length === 0) || loading}>
+            {loading ? 'Starting Lesson...' : 'Start Lesson'}
           </button>
-        </div>
 
-      </main>
-    </>
+          {error && <div className="error-toast">⚠️ {error}</div>}
+        </div>
+      </div>
+    </main>
   );
 }

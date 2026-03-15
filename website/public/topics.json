@@ -1,0 +1,2625 @@
+{
+    "Python Basics": {
+        "title": "Python Basics: A Whiteboard Lesson",
+        "sections": [
+            {
+                "id": 1,
+                "title": "Introduction to Python & Your First Program",
+                "steps": [
+                    {
+                        "speech": "welcome to Python Basics: let's start coding!",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Python Basics: Your Coding Journey"
+                        }
+                    },
+                    {
+                        "speech": "what is Python: high-level, interpreted, general-purpose language",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Python",
+                            "meaning": "High-level, interpreted, general-purpose programming language",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "why Python: readability, versatility, large community support",
+                        "cmd": {
+                            "cmd": "list",
+                            "title": "Why Python?",
+                            "items": [
+                                "Readable Syntax",
+                                "Versatile (Web, AI, Data)",
+                                "Huge Community"
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "Python's global impact: powering major applications and industries, as seen in this diagram.",
+                        "cmd": {
+                            "cmd": "image",
+                            "query": "Python programming language ecosystem applications diagram",
+                            "caption": "Python's Broad Applications",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "getting started: install Python interpreter and an IDE like VS Code",
+                        "cmd": {
+                            "cmd": "flow",
+                            "items": [
+                                "Download Python",
+                                "Install IDE (VS Code)",
+                                "Write Code"
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "IDE vs text editor: integrated development environment for better workflow",
+                        "cmd": {
+                            "cmd": "vs_block",
+                            "left": "Text Editor (Basic)",
+                            "right": "IDE (VS Code - Advanced)",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "first program: print 'Hello, World!' to the console",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Your First Program",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "the print function: displays output to the screen",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "print('Hello, World!')",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "running your script: save as .py, then execute in terminal",
+                        "cmd": {
+                            "cmd": "numbered",
+                            "items": [
+                                "Save as `hello.py`",
+                                "Open Terminal",
+                                "Run `python hello.py`"
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "comments: use '#' for single-line notes, ignored by interpreter",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "# This is a comment\nprint('Visible code')",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "multi-line comments: triple quotes are docstrings, often used as comments",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "'''\nThis is a multi-line\ncomment or docstring.\n'''",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "understanding the interpreter: executes code line by line",
+                        "cmd": {
+                            "cmd": "icon_label",
+                            "icon": "🐍",
+                            "text": "Python Interpreter",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "summary: Python's power, setup, and 'Hello World!'",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Python is versatile, easy to set up, and your first program is simple."
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "title": "Variables & Core Data Types",
+                "steps": [
+                    {
+                        "speech": "welcome back: let's explore how Python stores information",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Variables & Core Data Types"
+                        }
+                    },
+                    {
+                        "speech": "variables: named storage locations for data in memory",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Variable",
+                            "meaning": "A named container for storing data values",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "variable assignment: use '=' to assign a value",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "message = 'Hello'\ncount = 10",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "naming rules: descriptive, no spaces, start with letter/underscore",
+                        "cmd": {
+                            "cmd": "list",
+                            "title": "Naming Rules",
+                            "items": [
+                                "Start with letter/underscore",
+                                "No spaces",
+                                "Case-sensitive",
+                                "Descriptive"
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "common data types: integers, floats, strings, booleans",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Core Data Types",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "integers (int): whole numbers, positive or negative",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "age = 30\nyear = -2023",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "floating-point numbers (float): numbers with decimal points",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "price = 19.99\npi = 3.14159",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "strings (str): sequences of characters, enclosed in quotes",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "name = \"Alice\"\ngreeting = 'Hi!'",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "booleans (bool): True or False values, used for logic",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "is_active = True\nis_finished = False",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "dynamic typing: Python infers type, no explicit declaration needed",
+                        "cmd": {
+                            "cmd": "note",
+                            "text": "Python automatically determines a variable's type.",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "checking type: use the `type()` function to inspect a variable's type",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "x = 10\nprint(type(x)) # <class 'int'>",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "type conversion: changing data from one type to another",
+                        "cmd": {
+                            "cmd": "subheading",
+                            "text": "Type Conversion",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "functions for conversion: `int()`, `float()`, `str()`, `bool()`",
+                        "cmd": {
+                            "cmd": "table",
+                            "headers": [
+                                "Function",
+                                "Purpose"
+                            ],
+                            "rows": [
+                                [
+                                    "int()",
+                                    "To integer"
+                                ],
+                                [
+                                    "float()",
+                                    "To float"
+                                ],
+                                [
+                                    "str()",
+                                    "To string"
+                                ],
+                                [
+                                    "bool()",
+                                    "To boolean"
+                                ]
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: converting a string number to an integer for calculations",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "num_str = \"123\"\nnum_int = int(num_str)\nresult = num_int + 7",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "summary: variables store data, common types are int, float, str, bool, and types can be converted",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Variables hold data of various types (int, float, str, bool), and Python allows type conversion."
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 3,
+                "title": "Operators & Conditional Statements",
+                "steps": [
+                    {
+                        "speech": "hello again: let's learn how to perform operations and make decisions",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Operators & Conditional Logic"
+                        }
+                    },
+                    {
+                        "speech": "operators: symbols performing operations on values and variables",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Operator",
+                            "meaning": "Symbol that performs an operation on one or more operands",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "arithmetic operators: for mathematical calculations",
+                        "cmd": {
+                            "cmd": "table",
+                            "headers": [
+                                "Operator",
+                                "Description",
+                                "Example"
+                            ],
+                            "rows": [
+                                [
+                                    "+",
+                                    "Addition",
+                                    "x + y"
+                                ],
+                                [
+                                    "-",
+                                    "Subtraction",
+                                    "x - y"
+                                ],
+                                [
+                                    "*",
+                                    "Multiplication",
+                                    "x * y"
+                                ],
+                                [
+                                    "/",
+                                    "Division",
+                                    "x / y"
+                                ],
+                                [
+                                    "%",
+                                    "Modulus",
+                                    "x % y"
+                                ]
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "more arithmetic: floor division (//) and exponentiation (**)",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "print(10 // 3) # 3\nprint(2 ** 3)  # 8",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "assignment operators: assign values, often with an operation",
+                        "cmd": {
+                            "cmd": "table",
+                            "headers": [
+                                "Operator",
+                                "Example",
+                                "Equivalent"
+                            ],
+                            "rows": [
+                                [
+                                    "=",
+                                    "x = 5",
+                                    "x = 5"
+                                ],
+                                [
+                                    "+=",
+                                    "x += 3",
+                                    "x = x + 3"
+                                ],
+                                [
+                                    "*=",
+                                    "x *= 2",
+                                    "x = x * 2"
+                                ]
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "comparison operators: compare two values, result is boolean (True/False)",
+                        "cmd": {
+                            "cmd": "table",
+                            "headers": [
+                                "Operator",
+                                "Description"
+                            ],
+                            "rows": [
+                                [
+                                    "==",
+                                    "Equal to"
+                                ],
+                                [
+                                    "!=",
+                                    "Not equal to"
+                                ],
+                                [
+                                    ">",
+                                    "Greater than"
+                                ],
+                                [
+                                    "<",
+                                    "Less than"
+                                ],
+                                [
+                                    ">=",
+                                    "Greater or equal"
+                                ],
+                                [
+                                    "<=",
+                                    "Less or equal"
+                                ]
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "logical operators: combine conditional statements",
+                        "cmd": {
+                            "cmd": "table",
+                            "headers": [
+                                "Operator",
+                                "Description"
+                            ],
+                            "rows": [
+                                [
+                                    "and",
+                                    "Both true"
+                                ],
+                                [
+                                    "or",
+                                    "At least one true"
+                                ],
+                                [
+                                    "not",
+                                    "Reverses result"
+                                ]
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "operator precedence: order of operations, like math PEMDAS",
+                        "cmd": {
+                            "cmd": "flow",
+                            "items": [
+                                "Parentheses",
+                                "Exponents",
+                                "Multiplication/Division",
+                                "Addition/Subtraction",
+                                "Comparisons",
+                                "Logical (not, and, or)"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "conditional statements: `if`, `elif`, `else` for decision making",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Conditional Statements",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "the `if` statement: executes code block if condition is true",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "age = 18\nif age >= 18:\n    print('Adult')",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "the `if-else` statement: provides an alternative path",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "score = 75\nif score >= 60:\n    print('Pass')\nelse:\n    print('Fail')",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "the `if-elif-else` chain: for multiple exclusive conditions",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "temp = 25\nif temp > 30:\n    print('Hot')\nelif temp < 10:\n    print('Cold')\nelse:\n    print('Moderate')",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "indentation is crucial: Python uses it to define code blocks",
+                        "cmd": {
+                            "cmd": "box",
+                            "text": "Indentation (4 spaces) defines code blocks in Python!",
+                            "style": "important",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: user input and conditional logic for a simple age check",
+                        "cmd": {
+                            "cmd": "practice",
+                            "text": "age = int(input('Enter age: '))\nif age >= 18:\n    print('Eligible')\nelse:\n    print('Not eligible')",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "summary: operators perform actions, conditionals enable decision-making based on logic",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Python uses operators for computations and comparisons, while `if/elif/else` statements control program flow."
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 4,
+                "title": "Loops & Functions",
+                "steps": [
+                    {
+                        "speech": "welcome to the final section: automating tasks and organizing code",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Loops & Functions"
+                        }
+                    },
+                    {
+                        "speech": "loops: repeat blocks of code efficiently",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Loop",
+                            "meaning": "A control flow statement that executes code repeatedly",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "the `for` loop: iterates over sequences (lists, strings, range)",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "for i in range(3):\n    print(i)",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "the `range()` function: generates a sequence of numbers",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• `range(stop)`: 0 to stop-1\n• `range(start, stop)`\n• `range(start, stop, step)`",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "iterating through a list: `for` loop works with any iterable",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "fruits = ['apple', 'banana']\nfor fruit in fruits:\n    print(fruit)",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "the `while` loop: executes as long as a condition is true",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "count = 0\nwhile count < 3:\n    print(count)\n    count += 1",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "infinite loops: beware of conditions that never become false",
+                        "cmd": {
+                            "cmd": "cross",
+                            "text": "while True: print('Looping')",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "loop control: `break` to exit a loop prematurely",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "for i in range(5):\n    if i == 3:\n        break\n    print(i)",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "loop control: `continue` to skip current iteration, proceed to next",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "for i in range(5):\n    if i == 2:\n        continue\n    print(i)",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "functions: reusable blocks of code for specific tasks",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Functions: Reusable Code",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "defining a function: use `def` keyword, name, parentheses, colon",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "def greet():\n    print('Hello!')",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "calling a function: execute the defined code block by its name",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "greet() # Outputs: Hello!",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "parameters: inputs passed into a function",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "def greet_name(name):\n    print(f'Hello, {name}!')",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "return values: functions can send results back using `return`",
+                        "cmd": {
+                            "cmd": "code_block",
+                            "text": "def add(a, b):\n    return a + b\nresult = add(5, 3)",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "function structure: input, process, output model",
+                        "cmd": {
+                            "cmd": "flow",
+                            "items": [
+                                "Parameters (Input)",
+                                "Function Body (Process)",
+                                "Return Value (Output)"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "visualizing functions: like small machines taking inputs and giving outputs, as shown here.",
+                        "cmd": {
+                            "cmd": "image",
+                            "query": "programming function input output diagram",
+                            "caption": "Function as a Black Box",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "quiz time: what will be the output of this loop?",
+                        "cmd": {
+                            "cmd": "quiz",
+                            "question": "What is the output of:\n`for i in range(1, 4):\n    print(i * 2)`",
+                            "options": [
+                                "0 2 4",
+                                "2 4 6",
+                                "1 2 3",
+                                "Error"
+                            ],
+                            "correctIndex": 1
+                        }
+                    },
+                    {
+                        "speech": "summary: loops automate repetition, functions organize and reuse code effectively",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Loops (for, while) automate tasks, while functions (`def`) modularize and reuse code for better organization."
+                        }
+                    }
+                ]
+            }
+        ],
+        "summary": "Today we covered the fundamentals of Python programming, including its introduction, setting up your environment, understanding variables and core data types, using various operators, controlling program flow with conditional statements and loops, and finally, organizing code with functions. These are the building blocks for writing powerful Python applications."
+    },
+    "Basic Algebra": {
+        "title": "Basic Algebra: Unlocking the Unknown",
+        "sections": [
+            {
+                "id": 1,
+                "title": "Introduction to Variables & Expressions",
+                "steps": [
+                    {
+                        "speech": "welcome to basic algebra: fundamental concepts",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Introduction to Variables & Expressions"
+                        }
+                    },
+                    {
+                        "speech": "algebra: using letters to represent numbers",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "What is Algebra?",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "variables: symbols for unknown values",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Variable",
+                            "meaning": "A letter representing an unknown number",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "common variables: x, y, z, a, b",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• x, y, z\n• a, b, c\n• Any letter!",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "look at this diagram: 'x' as a placeholder for any number",
+                        "cmd": {
+                            "cmd": "image",
+                            "query": "abstract illustration of variable 'x' as a placeholder in a mathematical context",
+                            "caption": "Variables Represent Unknowns",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "constants: values that never change",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Constants",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "examples of constants: numbers like 5, -3, 1/2",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• 5, 100, -7\n• 3.14 (pi)\n• Any fixed number",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "variables change, constants stay fixed",
+                        "cmd": {
+                            "cmd": "vs_block",
+                            "left": "Variables (change)",
+                            "right": "Constants (fixed)",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "algebraic expression: combination of variables, constants, and operations",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Algebraic Expressions",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: 2x + 5 is an expression",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "2x + 5\n3y - 7\na/2 + 4",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "terms: parts of an expression separated by + or -",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Term",
+                            "meaning": "Part of an expression separated by + or -",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "coefficients: numerical part of a term with a variable",
+                        "cmd": {
+                            "cmd": "badge",
+                            "text": "Coefficient",
+                            "color": "blue",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "identify terms, coefficients, constants in 3x + 7y - 4",
+                        "cmd": {
+                            "cmd": "table",
+                            "headers": [
+                                "Type",
+                                "Example"
+                            ],
+                            "rows": [
+                                [
+                                    "Terms",
+                                    "3x, 7y, -4"
+                                ],
+                                [
+                                    "Coefficients",
+                                    "3, 7"
+                                ],
+                                [
+                                    "Constant",
+                                    "-4"
+                                ]
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "evaluating expressions: substitute values for variables",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Evaluating Expressions",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "steps for evaluation: substitute then calculate",
+                        "cmd": {
+                            "cmd": "numbered",
+                            "items": [
+                                "Substitute variable(s)",
+                                "Follow order of operations (PEMDAS)"
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: evaluate 3x + 7 when x = 2",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "3(2) + 7 = 6 + 7 = 13",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "graph shows direct relationship: as x increases, 3x+7 increases",
+                        "cmd": {
+                            "cmd": "graph",
+                            "type": "direct",
+                            "xAxis": "x value",
+                            "yAxis": "3x + 7",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "summary: algebra uses variables, expressions combine terms, evaluate by substitution",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Algebra uses variables (unknowns) and constants (fixed values) to form expressions. Evaluate expressions by substituting variable values and following PEMDAS."
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "title": "Operations with Algebraic Expressions",
+                "steps": [
+                    {
+                        "speech": "now, let's learn to perform operations on algebraic expressions",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Operations with Algebraic Expressions"
+                        }
+                    },
+                    {
+                        "speech": "combining like terms: fundamental for simplifying",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Combining Like Terms",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "like terms: same variable(s) raised to the same power",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Like Terms",
+                            "meaning": "Terms with identical variable parts",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "examples of like terms: 3x and 5x, 2y² and -7y²",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• 3x, 5x\n• 2y², -7y²\n• 4, -10 (constants are like terms)",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "to combine: add or subtract coefficients, keep variable part",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "3x + 5x = (3+5)x = 8x\n7y - 2y = (7-2)y = 5y",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "practice: simplify 4y + 2y - y",
+                        "cmd": {
+                            "cmd": "practice",
+                            "text": "Simplify: 4y + 2y - y",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "distributive property: multiply a term by an expression in parentheses",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Distributive Property",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "formula: a times (b plus c) equals ab plus ac",
+                        "cmd": {
+                            "cmd": "equation",
+                            "text": "a(b + c) = ab + ac",
+                            "label": "Distributive Property",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: distribute 2 into (x + 3)",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "2(x + 3) = 2*x + 2*3 = 2x + 6",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "steps for distributing: multiply outside term by each inside term",
+                        "cmd": {
+                            "cmd": "flow",
+                            "items": [
+                                "Identify outside term",
+                                "Multiply by first inside term",
+                                "Multiply by second inside term",
+                                "Combine results"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "multiplying monomials: multiply coefficients, add exponents of same variables",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Multiplying Monomials",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "exponent rule: x to the power of a times x to the power of b is x to the power of (a+b)",
+                        "cmd": {
+                            "cmd": "formula_block",
+                            "text": "xᵃ • xᵇ = xᵃ⁺ᵇ",
+                            "label": "Product Rule",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: (3x) multiplied by (2x)",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "(3x)(2x) = (3*2)(x*x) = 6x²",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "dividing monomials: divide coefficients, subtract exponents of same variables",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Dividing Monomials",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "exponent rule: x to the power of a divided by x to the power of b is x to the power of (a-b)",
+                        "cmd": {
+                            "cmd": "formula_block",
+                            "text": "xᵃ / xᵇ = xᵃ⁻ᵇ",
+                            "label": "Quotient Rule",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: (6x squared) divided by (2x)",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "(6x²) / (2x) = (6/2)(x²/x) = 3x",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "simplifying complex expressions: use all rules learned",
+                        "cmd": {
+                            "cmd": "numbered",
+                            "items": [
+                                "Distribute first",
+                                "Combine like terms"
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: simplify 3(x+2) + 5x",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "3(x+2) + 5x = 3x + 6 + 5x = 8x + 6",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "summary: combine like terms, distribute, use exponent rules for multiplication/division",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Simplify expressions by combining like terms and applying the distributive property. Use exponent rules for multiplying (add exponents) and dividing (subtract exponents) monomials."
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 3,
+                "title": "Introduction to Equations",
+                "steps": [
+                    {
+                        "speech": "let's move from expressions to equations",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Introduction to Equations"
+                        }
+                    },
+                    {
+                        "speech": "equation: two expressions are equal",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "What is an Equation?",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "definition: a mathematical statement with an equals sign",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Equation",
+                            "meaning": "A statement that two expressions are equal (=)",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "contrast: expressions don't have an equals sign, equations do",
+                        "cmd": {
+                            "cmd": "comparison",
+                            "left": "Expression (no =)",
+                            "right": "Equation (has =)",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "the equals sign means balance, like a scale",
+                        "cmd": {
+                            "cmd": "box",
+                            "text": "The '=' sign signifies balance.",
+                            "style": "important",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "visualize an equation as a balanced scale, what you do to one side, do to the other",
+                        "cmd": {
+                            "cmd": "image",
+                            "query": "balance scale with algebra equation on each side",
+                            "caption": "Equations as Balanced Scales",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "solving equations: find the value of the variable",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Solving One-Step Equations",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "goal: isolate the variable on one side of the equation",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "Goal: Get the variable alone.",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "inverse operations: undoing an operation",
+                        "cmd": {
+                            "cmd": "subheading",
+                            "text": "Inverse Operations",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "addition undoes subtraction, multiplication undoes division",
+                        "cmd": {
+                            "cmd": "table",
+                            "headers": [
+                                "Operation",
+                                "Inverse"
+                            ],
+                            "rows": [
+                                [
+                                    "Addition (+)",
+                                    "Subtraction (-)"
+                                ],
+                                [
+                                    "Multiplication (*)",
+                                    "Division (/)"
+                                ]
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "example: x plus 5 equals 10",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "x + 5 = 10",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "to solve x+5=10, subtract 5 from both sides",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 1,
+                            "title": "Solve x + 5 = 10",
+                            "text": "x + 5 - 5 = 10 - 5\nx = 5",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "example: x minus 3 equals 7",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "x - 3 = 7",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "to solve x-3=7, add 3 to both sides",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 2,
+                            "title": "Solve x - 3 = 7",
+                            "text": "x - 3 + 3 = 7 + 3\nx = 10",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "multiplication and division equations",
+                        "cmd": {
+                            "cmd": "subheading",
+                            "text": "Multiplication/Division",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: 2x equals 12",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "2x = 12",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "to solve 2x=12, divide both sides by 2",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 3,
+                            "title": "Solve 2x = 12",
+                            "text": "2x / 2 = 12 / 2\nx = 6",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "example: x divided by 4 equals 3",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "x / 4 = 3",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "to solve x/4=3, multiply both sides by 4",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 4,
+                            "title": "Solve x / 4 = 3",
+                            "text": "(x / 4) * 4 = 3 * 4\nx = 12",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "summary: equations have an equals sign, solve by using inverse operations to isolate the variable",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Equations state two expressions are equal. Solve one-step equations by applying the inverse operation (addition/subtraction, multiplication/division) to both sides to isolate the variable."
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 4,
+                "title": "Solving Multi-Step Equations",
+                "steps": [
+                    {
+                        "speech": "let's combine skills to solve more complex equations",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Solving Multi-Step Equations"
+                        }
+                    },
+                    {
+                        "speech": "multi-step equations require several inverse operations",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "General Strategy",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "order of operations in reverse: undo addition/subtraction first, then multiplication/division",
+                        "cmd": {
+                            "cmd": "flow",
+                            "items": [
+                                "Distribute (if needed)",
+                                "Combine Like Terms (if needed)",
+                                "Add/Subtract",
+                                "Multiply/Divide"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "example: 2x plus 3 equals 11",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "2x + 3 = 11",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "solve 2x+3=11: subtract 3, then divide by 2",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 1,
+                            "title": "Solve 2x + 3 = 11",
+                            "text": "2x + 3 - 3 = 11 - 3\n2x = 8\n2x / 2 = 8 / 2\nx = 4",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "equations with like terms: combine them before isolating the variable",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Combining Like Terms",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: 3x plus 5 plus 2x equals 20",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "3x + 5 + 2x = 20",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "solve 3x+5+2x=20: combine 3x and 2x, then solve 5x+5=20",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 2,
+                            "title": "Solve 3x + 5 + 2x = 20",
+                            "text": "(3x + 2x) + 5 = 20\n5x + 5 = 20\n5x = 15\nx = 3",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "equations with distributive property: expand first",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Distributive Property",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: 2 times (x plus 4) equals 18",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "2(x + 4) = 18",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "solve 2(x+4)=18: distribute 2, then solve 2x+8=18",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 3,
+                            "title": "Solve 2(x + 4) = 18",
+                            "text": "2x + 8 = 18\n2x = 10\nx = 5",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "variables on both sides: move all variable terms to one side",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Variables on Both Sides",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: 5x minus 3 equals 2x plus 9",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "5x - 3 = 2x + 9",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "solve 5x-3=2x+9: subtract 2x from both sides, then add 3",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 4,
+                            "title": "Solve 5x - 3 = 2x + 9",
+                            "text": "5x - 2x - 3 = 2x - 2x + 9\n3x - 3 = 9\n3x = 12\nx = 4",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "practice problem: combine all these techniques",
+                        "cmd": {
+                            "cmd": "practice",
+                            "text": "Solve: 4(y - 2) + 3y = 2y + 7",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "quick quiz: test your understanding of multi-step equations",
+                        "cmd": {
+                            "cmd": "quiz",
+                            "question": "Which is the first step to solve 3(x + 2) - x = 10?",
+                            "options": [
+                                "Combine like terms (x and -x)",
+                                "Distribute 3 to (x + 2)",
+                                "Subtract 2 from both sides",
+                                "Add x to both sides"
+                            ],
+                            "correctIndex": 1
+                        }
+                    },
+                    {
+                        "speech": "summary: use a systematic approach to solve multi-step equations",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Multi-step equations require a systematic approach: distribute, combine like terms, then use inverse operations to isolate the variable, moving variable terms to one side."
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 5,
+                "title": "Introduction to Inequalities",
+                "steps": [
+                    {
+                        "speech": "finally, let's explore inequalities, which are similar but different from equations",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Introduction to Inequalities"
+                        }
+                    },
+                    {
+                        "speech": "inequalities: comparing values that are not equal",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "What are Inequalities?",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "definition: a mathematical statement comparing two expressions using inequality symbols",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Inequality",
+                            "meaning": "Compares two expressions using <, >, ≤, or ≥",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "symbols: less than, greater than, less than or equal to, greater than or equal to",
+                        "cmd": {
+                            "cmd": "table",
+                            "headers": [
+                                "Symbol",
+                                "Meaning"
+                            ],
+                            "rows": [
+                                [
+                                    "<",
+                                    "Less than"
+                                ],
+                                [
+                                    ">",
+                                    "Greater than"
+                                ],
+                                [
+                                    "≤",
+                                    "Less than or equal to"
+                                ],
+                                [
+                                    "≥",
+                                    "Greater than or equal to"
+                                ]
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "key difference: inequalities have a range of solutions, not just one",
+                        "cmd": {
+                            "cmd": "box",
+                            "text": "Equations: One solution. Inequalities: A range of solutions.",
+                            "style": "highlight",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "graphing inequalities: visualize solutions on a number line",
+                        "cmd": {
+                            "cmd": "subheading",
+                            "text": "Graphing Inequalities",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: x is greater than 3, shown with an open circle and arrow to the right",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "x > 3 (open circle at 3, arrow right)",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "solving one-step inequalities: mostly like equations",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Solving One-Step Inequalities",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "exception: flip inequality sign when multiplying or dividing by a negative number",
+                        "cmd": {
+                            "cmd": "callout",
+                            "text": "CRITICAL: Flip sign if multiplying/dividing by a negative number!",
+                            "style": "default",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: x plus 2 is less than 7",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "x + 2 < 7",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "solve x+2<7: subtract 2 from both sides",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 1,
+                            "title": "Solve x + 2 < 7",
+                            "text": "x + 2 - 2 < 7 - 2\nx < 5",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "example: negative 2x is greater than or equal to 6",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "-2x ≥ 6",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "solve -2x>=6: divide by -2 and flip the sign",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 2,
+                            "title": "Solve -2x ≥ 6",
+                            "text": "-2x / -2 ≤ 6 / -2\nx ≤ -3",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "solving multi-step inequalities: combine equation solving steps with inequality rules",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Solving Multi-Step Inequalities",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "example: 3x minus 4 is less than 11",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "3x - 4 < 11",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "solve 3x-4<11: add 4, then divide by 3",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 3,
+                            "title": "Solve 3x - 4 < 11",
+                            "text": "3x - 4 + 4 < 11 + 4\n3x < 15\n3x / 3 < 15 / 3\nx < 5",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "summary: inequalities define a range of solutions, remember to flip the sign when multiplying/dividing by negatives",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Inequalities compare expressions, resulting in a range of solutions. Solve them like equations, but remember to flip the inequality sign if you multiply or divide both sides by a negative number. Solutions can be graphed on a number line."
+                        }
+                    }
+                ]
+            }
+        ],
+        "summary": "Today we covered the basics of algebra, starting with variables and expressions, moving to operations like combining terms and distributing. We then learned to solve one-step and multi-step equations using inverse operations. Finally, we explored inequalities, understanding their symbols, graphing solutions, and solving them with the special rule of flipping the sign when multiplying or dividing by a negative."
+    },
+    "Ancient Egypt": {
+        "title": "Ancient Egypt: Civilization along the Nile",
+        "sections": [
+            {
+                "id": 1,
+                "title": "The Gift of the Nile: Foundations of a Civilization",
+                "steps": [
+                    {
+                        "speech": "welcome to our lesson on Ancient Egypt, exploring its rich history and culture.",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Ancient Egypt: Civilization along the Nile"
+                        }
+                    },
+                    {
+                        "speech": "geographical context: Egypt located in Northeast Africa, dominated by the Sahara desert.",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Geography & Environment",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "observe the map: the Nile River is the central feature, flowing north to the Mediterranean Sea.",
+                        "cmd": {
+                            "cmd": "image",
+                            "query": "ancient egypt map nile river delta",
+                            "caption": "Ancient Egypt and the Nile River",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "the Nile's annual flooding was crucial, depositing fertile silt for agriculture.",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• Nile River: lifeblood\n• Annual flooding: fertile silt\n• Predictable cycles",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "this predictable cycle enabled early settlements and surplus food production.",
+                        "cmd": {
+                            "cmd": "flow",
+                            "items": [
+                                "Nile Floods",
+                                "Silt Deposits",
+                                "Fertile Land",
+                                "Crop Growth"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "definition: Ancient Egypt's existence relied entirely on the Nile River.",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Gift of the Nile",
+                            "meaning": "Herodotus' term for Egypt's dependence on the Nile",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "early settlements emerged along the Nile's banks, evolving into villages and towns.",
+                        "cmd": {
+                            "cmd": "subheading",
+                            "text": "Early Settlements & Unification",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "these early communities developed irrigation systems to manage water resources effectively.",
+                        "cmd": {
+                            "cmd": "process",
+                            "items": [
+                                "Digging Canals",
+                                "Building Dykes",
+                                "Water Distribution"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "around 3100 BCE, Upper and Lower Egypt unified under a single ruler, marking the start of Dynastic Egypt.",
+                        "cmd": {
+                            "cmd": "timeline",
+                            "points": [
+                                "~5000 BCE: Early farming villages",
+                                "~3100 BCE: Unification of Egypt (Menes/Narmer)"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "the unification established the first pharaohs and a centralized government.",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• Upper Egypt (South)\n• Lower Egypt (North)\n• Unified by Narmer/Menes",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "this period laid the groundwork for thousands of years of continuous civilization.",
+                        "cmd": {
+                            "cmd": "box",
+                            "text": "Foundation of a Long-Lasting Civilization",
+                            "style": "important",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "the early dynastic period saw the development of key administrative and religious practices.",
+                        "cmd": {
+                            "cmd": "list",
+                            "title": "Early Dynastic Developments",
+                            "items": [
+                                "Centralized bureaucracy",
+                                "Early religious beliefs",
+                                "Hierarchical society"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "understanding the Nile's role is essential to grasping ancient Egyptian life.",
+                        "cmd": null
+                    },
+                    {
+                        "speech": "consider the challenges and benefits of living in such a unique environment.",
+                        "cmd": {
+                            "cmd": "callout",
+                            "text": "Think: How did geography shape culture?",
+                            "style": "default",
+                            "col": "left"
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "title": "Pharaohs, Gods, and Social Order",
+                "steps": [
+                    {
+                        "speech": "now we explore the structure of ancient Egyptian society, led by the divine pharaohs.",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Pharaohs, Gods, and Social Order"
+                        }
+                    },
+                    {
+                        "speech": "the pharaoh was considered a living god, absolute ruler, and intermediary with the deities.",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Pharaoh",
+                            "meaning": "Divine king, absolute ruler of Egypt",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "their role encompassed political, religious, and military leadership.",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• Political leader\n• Religious head (chief priest)\n• Military commander",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "Egyptian society was strictly hierarchical, resembling a pyramid structure.",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Social Hierarchy",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "at the apex was the pharaoh, followed by nobles, priests, scribes, and artisans.",
+                        "cmd": {
+                            "cmd": "tree",
+                            "root": "Pharaoh",
+                            "children": [
+                                "Viziers/Nobles",
+                                "Priests",
+                                "Scribes",
+                                "Artisans/Merchants",
+                                "Farmers/Laborers",
+                                "Slaves"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "the vast majority of the population were farmers and laborers, working the land.",
+                        "cmd": {
+                            "cmd": "chart",
+                            "data": [
+                                {
+                                    "label": "Pharaoh",
+                                    "value": 1
+                                },
+                                {
+                                    "label": "Nobles/Priests",
+                                    "value": 5
+                                },
+                                {
+                                    "label": "Scribes/Artisans",
+                                    "value": 15
+                                },
+                                {
+                                    "label": "Farmers/Laborers",
+                                    "value": 79
+                                }
+                            ],
+                            "title": "Egyptian Population Distribution",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "religion permeated all aspects of life, with a complex pantheon of gods and goddesses.",
+                        "cmd": {
+                            "cmd": "subheading",
+                            "text": "Religious Beliefs",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "key deities included Ra (sun god), Osiris (underworld), and Isis (magic/motherhood).",
+                        "cmd": {
+                            "cmd": "list",
+                            "title": "Key Egyptian Gods",
+                            "items": [
+                                "Ra: Sun God",
+                                "Osiris: Underworld, rebirth",
+                                "Isis: Motherhood, magic",
+                                "Horus: Sky, protection"
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "the concept of Ma'at represented cosmic order, truth, and justice, maintained by the pharaoh.",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Ma'at",
+                            "meaning": "Cosmic order, justice, truth, balance",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "a strong belief in the afterlife drove many Egyptian practices, especially burial rituals.",
+                        "cmd": {
+                            "cmd": "badge",
+                            "text": "Afterlife Central",
+                            "color": "blue",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "the journey to the afterlife involved judgment by Osiris, weighing the heart against Ma'at's feather.",
+                        "cmd": {
+                            "cmd": "flow",
+                            "items": [
+                                "Death",
+                                "Mummification",
+                                "Judgment (Heart Weighing)",
+                                "Eternal Life/Devoured"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "consider the pharaoh's immense power and responsibility in maintaining both earthly and cosmic order.",
+                        "cmd": null
+                    },
+                    {
+                        "speech": "which of these roles was NOT primarily associated with the Pharaoh in Ancient Egypt?",
+                        "cmd": {
+                            "cmd": "quiz",
+                            "question": "Which of these roles was NOT primarily associated with the Pharaoh in Ancient Egypt?",
+                            "options": [
+                                "Absolute Ruler",
+                                "Chief Priest",
+                                "Military Commander",
+                                "Chief Scribe"
+                            ],
+                            "correctIndex": 3
+                        }
+                    },
+                    {
+                        "speech": "the social and religious structures provided stability and meaning for thousands of years.",
+                        "cmd": {
+                            "cmd": "note",
+                            "text": "Stable social structure for millennia.",
+                            "col": "left"
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 3,
+                "title": "Wonders of Ancient Egypt: Achievements and Culture",
+                "steps": [
+                    {
+                        "speech": "now, let's marvel at the incredible achievements and cultural contributions of ancient Egypt.",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Wonders of Ancient Egypt: Achievements"
+                        }
+                    },
+                    {
+                        "speech": "the pyramids stand as enduring symbols of Egyptian architectural and engineering prowess.",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Architectural Marvels: Pyramids",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "the Great Pyramid of Giza, built for Pharaoh Khufu, is the largest and most famous.",
+                        "cmd": {
+                            "cmd": "image",
+                            "query": "Great Pyramid of Giza with Sphinx professional photo",
+                            "caption": "The Great Pyramid of Giza and Sphinx",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "these monumental structures served as tombs, ensuring the pharaoh's passage to the afterlife.",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• Purpose: Royal tombs\n• Symbol of power and divinity\n• Required vast resources and labor",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "hieroglyphs were the formal writing system, combining pictures, symbols, and phonetic elements.",
+                        "cmd": {
+                            "cmd": "subheading",
+                            "text": "Hieroglyphic Writing",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "the Rosetta Stone was key to deciphering hieroglyphs, providing parallel texts in Greek and Demotic.",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "Rosetta Stone: Greek, Demotic, Hieroglyphic scripts.",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "mummification was a complex process to preserve bodies for the afterlife.",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Mummification & Afterlife Preparations",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "the process involved removing organs, drying with natron, and elaborate wrapping.",
+                        "cmd": {
+                            "cmd": "numbered",
+                            "items": [
+                                "Organ removal (except heart)",
+                                "Drying with natron salt (70 days)",
+                                "Anointing with oils",
+                                "Wrapping in linen bandages",
+                                "Burial with grave goods"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "Egyptian art and sculpture followed strict conventions, emphasizing order and symbolism.",
+                        "cmd": {
+                            "cmd": "subheading",
+                            "text": "Art, Sculpture & Temples",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "temples like Karnak and Luxor were massive complexes dedicated to gods, featuring colossal statues and intricate carvings.",
+                        "cmd": {
+                            "cmd": "list",
+                            "title": "Notable Temples",
+                            "items": [
+                                "Karnak Temple Complex",
+                                "Luxor Temple",
+                                "Abu Simbel"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "beyond grand structures, Egyptians made significant contributions to science and technology.",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Scientific & Technological Innovations",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "they developed papyrus for writing, a 365-day calendar, and advanced medical knowledge.",
+                        "cmd": {
+                            "cmd": "table",
+                            "headers": [
+                                "Field",
+                                "Innovation"
+                            ],
+                            "rows": [
+                                [
+                                    "Writing",
+                                    "Papyrus"
+                                ],
+                                [
+                                    "Time",
+                                    "365-day calendar"
+                                ],
+                                [
+                                    "Medicine",
+                                    "Surgical instruments, pharmacology"
+                                ],
+                                [
+                                    "Mathematics",
+                                    "Geometry, fractions"
+                                ]
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "their understanding of geometry was crucial for pyramid construction and land surveying after floods.",
+                        "cmd": {
+                            "cmd": "equation",
+                            "text": "Area = Length × Width",
+                            "label": "Basic Geometry",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "these enduring achievements reflect a sophisticated and highly organized society.",
+                        "cmd": null
+                    }
+                ]
+            },
+            {
+                "id": 4,
+                "title": "Decline, Foreign Rule, and Enduring Legacy",
+                "steps": [
+                    {
+                        "speech": "finally, we examine the later periods of decline, foreign rule, and Egypt's lasting impact.",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Decline, Foreign Rule, and Enduring Legacy"
+                        }
+                    },
+                    {
+                        "speech": "after the New Kingdom, Egypt experienced periods of fragmentation and external invasions.",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Periods of Decline",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "various foreign powers, including Libyans, Nubians, Assyrians, and Persians, controlled Egypt.",
+                        "cmd": {
+                            "cmd": "timeline",
+                            "points": [
+                                "~1070 BCE: End of New Kingdom",
+                                "~670 BCE: Assyrian conquest",
+                                "~525 BCE: Persian conquest",
+                                "332 BCE: Alexander the Great"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "Alexander the Great's conquest in 332 BCE marked the beginning of Greek rule.",
+                        "cmd": {
+                            "cmd": "subheading",
+                            "text": "Ptolemaic Dynasty (Greek Rule)",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "the Ptolemaic dynasty, founded by Ptolemy I, ruled for nearly 300 years.",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• Hellenistic period\n• Alexandria: center of learning\n• Lighthouse of Alexandria, Library",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "Cleopatra VII was the last active pharaoh, attempting to restore Egyptian power.",
+                        "cmd": {
+                            "cmd": "callout",
+                            "text": "Cleopatra VII: Last Pharaoh",
+                            "style": "highlight",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "her defeat and suicide in 30 BCE led to Egypt becoming a Roman province.",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Roman Conquest & End of Independence",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "under Roman rule, Egypt became the 'breadbasket' of the Roman Empire, losing its independent identity.",
+                        "cmd": {
+                            "cmd": "vs_block",
+                            "left": "Ptolemaic Egypt (Greek Pharaohs)",
+                            "right": "Roman Egypt (Province)",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "despite political changes, Egyptian culture and beliefs persisted for centuries.",
+                        "cmd": null
+                    },
+                    {
+                        "speech": "the legacy of Ancient Egypt is immense, influencing civilizations worldwide.",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Enduring Legacy",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "its impact is seen in architecture, art, writing systems, and religious thought.",
+                        "cmd": {
+                            "cmd": "list",
+                            "title": "Global Influence",
+                            "items": [
+                                "Architecture (obelisks, columns)",
+                                "Artistic motifs",
+                                "Early writing concepts",
+                                "Religious symbolism"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "many ancient Egyptian artifacts and monuments continue to inspire awe and study today.",
+                        "cmd": {
+                            "cmd": "example",
+                            "text": "Tourism to Pyramids, Luxor, Valley of the Kings.",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "our understanding of history is greatly enriched by the decipherment of hieroglyphs.",
+                        "cmd": {
+                            "cmd": "check",
+                            "text": "Rosetta Stone's importance",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "Ancient Egypt remains a testament to human ingenuity, organization, and spiritual depth.",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Ancient Egypt: A civilization shaped by the Nile, ruled by divine pharaohs, leaving an indelible mark on history through its monumental achievements and profound cultural legacy."
+                        }
+                    }
+                ]
+            }
+        ],
+        "summary": "Today we covered the geographical foundations of Ancient Egypt, the divine role of pharaohs and social structure, their incredible achievements in architecture, writing, and science, and finally, the periods of decline, foreign rule, and their enduring global legacy."
+    },
+    "Photosynthesis": {
+        "title": "Photosynthesis: The Engine of Life",
+        "sections": [
+            {
+                "id": 1,
+                "title": "Introduction to Photosynthesis",
+                "steps": [
+                    {
+                        "speech": "welcome: exploring photosynthesis, the process sustaining life on Earth",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Introduction to Photosynthesis"
+                        }
+                    },
+                    {
+                        "speech": "definition: plants convert light energy into chemical energy (sugars)",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Photosynthesis",
+                            "meaning": "Process converting light energy into chemical energy",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "overall equation: carbon dioxide plus water, with light, yields glucose and oxygen",
+                        "cmd": {
+                            "cmd": "equation",
+                            "text": "6CO₂ + 6H₂O + Light Energy → C₆H₁₂O₆ + 6O₂",
+                            "label": "Overall Equation",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "reactants and products: identifying inputs and outputs",
+                        "cmd": {
+                            "cmd": "table",
+                            "headers": [
+                                "Type",
+                                "Molecules"
+                            ],
+                            "rows": [
+                                [
+                                    "Reactants",
+                                    "CO₂, H₂O, Light"
+                                ],
+                                [
+                                    "Products",
+                                    "C₆H₁₂O₆, O₂"
+                                ]
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "importance: primary energy source, produces oxygen for respiration",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• Basis of most food webs\n• Produces atmospheric oxygen",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "where it happens: chloroplasts, specialized organelles in plant cells",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Location: Chloroplasts",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "visualize a plant cell with chloroplasts, the sites of photosynthesis",
+                        "cmd": {
+                            "cmd": "image",
+                            "query": "plant cell diagram with labeled chloroplasts",
+                            "caption": "Chloroplasts within a Plant Cell",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "chloroplast structure: outer membrane, inner membrane, stroma, thylakoids, grana",
+                        "cmd": {
+                            "cmd": "list",
+                            "title": "Chloroplast Components",
+                            "items": [
+                                "Outer/Inner Membranes",
+                                "Stroma",
+                                "Thylakoids",
+                                "Grana"
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "two main stages: light-dependent reactions and light-independent reactions",
+                        "cmd": {
+                            "cmd": "flow",
+                            "items": [
+                                "Light-Dependent Reactions",
+                                "Light-Independent Reactions (Calvin Cycle)"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "energy flow: light energy captured, converted, stored",
+                        "cmd": {
+                            "cmd": "arrow",
+                            "label": "Energy Transformation",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "brief history: early experiments by Jan Ingenhousz and others",
+                        "cmd": {
+                            "cmd": "timeline",
+                            "points": [
+                                "1779: Ingenhousz identifies light's role",
+                                "1845: Mayer proposes energy conversion"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "key takeaways: photosynthesis is vital for life, occurs in chloroplasts, two stages",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Photosynthesis is crucial, happens in chloroplasts, and has two main stages."
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "title": "The Light-Dependent Reactions",
+                "steps": [
+                    {
+                        "speech": "now focusing on the light-dependent reactions, the first stage",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "The Light-Dependent Reactions"
+                        }
+                    },
+                    {
+                        "speech": "location: thylakoid membranes within the chloroplast",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Where It Happens: Thylakoids",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "inputs: light energy and water molecules",
+                        "cmd": {
+                            "cmd": "icon_label",
+                            "icon": "☀️",
+                            "text": "Light Energy + H₂O",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "outputs: ATP, NADPH, and oxygen gas",
+                        "cmd": {
+                            "cmd": "icon_label",
+                            "icon": "💡",
+                            "text": "ATP + NADPH + O₂",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "chlorophyll: the primary pigment absorbing light energy",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "Chlorophyll",
+                            "meaning": "Green pigment absorbing light for photosynthesis",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "light absorption spectrum: chlorophyll absorbs blue-violet and red light, reflects green",
+                        "cmd": {
+                            "cmd": "chart",
+                            "data": [
+                                {
+                                    "label": "Blue-Violet",
+                                    "value": 90
+                                },
+                                {
+                                    "label": "Green",
+                                    "value": 10
+                                },
+                                {
+                                    "label": "Red",
+                                    "value": 80
+                                }
+                            ],
+                            "title": "Chlorophyll Absorption",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "photosystems: clusters of pigments capturing light energy",
+                        "cmd": {
+                            "cmd": "subheading",
+                            "text": "Photosystems I & II",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "electron transport chain: excited electrons move through protein complexes, releasing energy",
+                        "cmd": {
+                            "cmd": "flow",
+                            "items": [
+                                "Photosystem II",
+                                "Electron Transport Chain",
+                                "Photosystem I",
+                                "NADP+ Reductase"
+                            ],
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "water splitting (photolysis): H2O provides electrons, H+ ions, and oxygen",
+                        "cmd": {
+                            "cmd": "equation",
+                            "text": "2H₂O → 4H⁺ + 4e⁻ + O₂",
+                            "label": "Photolysis",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "oxygen release: O2 is a byproduct, essential for aerobic life",
+                        "cmd": {
+                            "cmd": "badge",
+                            "text": "O₂ Released",
+                            "color": "blue",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "ATP synthesis: proton gradient drives ATP synthase (chemiosmosis)",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• H⁺ gradient across thylakoid membrane\n• ATP synthase produces ATP",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "NADPH formation: electrons reduce NADP+ to NADPH, an energy carrier",
+                        "cmd": {
+                            "cmd": "equation",
+                            "text": "NADP⁺ + 2e⁻ + H⁺ → NADPH",
+                            "label": "NADPH Production",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "summary: light reactions convert light into chemical energy (ATP, NADPH) and produce oxygen",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Light reactions capture light, split water, and generate ATP, NADPH, and O₂."
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 3,
+                "title": "The Light-Independent Reactions (Calvin Cycle)",
+                "steps": [
+                    {
+                        "speech": "moving to the second stage: the light-independent reactions, or Calvin Cycle",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "The Light-Independent Reactions (Calvin Cycle)"
+                        }
+                    },
+                    {
+                        "speech": "location: the stroma, the fluid-filled space within the chloroplast",
+                        "cmd": {
+                            "cmd": "heading",
+                            "text": "Where It Happens: Stroma",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "inputs: carbon dioxide, ATP, and NADPH from light reactions",
+                        "cmd": {
+                            "cmd": "icon_label",
+                            "icon": "CO2",
+                            "text": "CO₂ + ATP + NADPH",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "output: glucose (sugar) for plant energy and structure",
+                        "cmd": {
+                            "cmd": "icon_label",
+                            "icon": "C6H1",
+                            "text": "C₆H₁₂O₆ (Glucose)",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "three main phases: carbon fixation, reduction, and regeneration",
+                        "cmd": {
+                            "cmd": "numbered",
+                            "items": [
+                                "Carbon Fixation",
+                                "Reduction",
+                                "Regeneration"
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "carbon fixation: CO2 combines with RuBP (ribulose-1,5-bisphosphate)",
+                        "cmd": {
+                            "cmd": "equation",
+                            "text": "CO₂ + RuBP → 3-PGA",
+                            "label": "Carbon Fixation",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "RuBisCO: the enzyme catalyzing carbon fixation, most abundant enzyme on Earth",
+                        "cmd": {
+                            "cmd": "definition",
+                            "term": "RuBisCO",
+                            "meaning": "Enzyme for CO₂ fixation in Calvin Cycle",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "visualizing the Calvin Cycle, a cyclic pathway",
+                        "cmd": {
+                            "cmd": "image",
+                            "query": "simplified diagram of the calvin cycle with inputs and outputs",
+                            "caption": "Overview of the Calvin Cycle",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "reduction phase: ATP and NADPH convert 3-PGA into G3P (glyceraldehyde-3-phosphate)",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 2,
+                            "title": "Reduction",
+                            "text": "3-PGA uses ATP & NADPH to become G3P",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "glucose synthesis: some G3P exits the cycle to form glucose and other organic molecules",
+                        "cmd": {
+                            "cmd": "box",
+                            "text": "G3P is the building block for glucose and other carbohydrates",
+                            "style": "important",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "regeneration phase: remaining G3P uses ATP to regenerate RuBP, continuing the cycle",
+                        "cmd": {
+                            "cmd": "step_block",
+                            "number": 3,
+                            "title": "Regeneration",
+                            "text": "Remaining G3P uses ATP to regenerate RuBP",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "efficiency: the cycle requires multiple turns to produce one glucose molecule",
+                        "cmd": {
+                            "cmd": "progress",
+                            "value": 33,
+                            "label": "1/3 of CO2 fixed for one G3P",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "summary: Calvin Cycle uses ATP, NADPH, and CO2 to produce sugars, regenerating RuBP",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "Calvin Cycle fixes CO₂, uses ATP/NADPH to make sugars, and regenerates RuBP."
+                        }
+                    }
+                ]
+            },
+            {
+                "id": 4,
+                "title": "Factors Affecting Photosynthesis & Global Significance",
+                "steps": [
+                    {
+                        "speech": "concluding with factors influencing photosynthesis and its global impact",
+                        "cmd": {
+                            "cmd": "title",
+                            "text": "Factors Affecting Photosynthesis & Global Significance"
+                        }
+                    },
+                    {
+                        "speech": "environmental factors: light intensity, CO2 concentration, temperature, water availability",
+                        "cmd": {
+                            "cmd": "list",
+                            "title": "Limiting Factors",
+                            "items": [
+                                "Light Intensity",
+                                "CO₂ Concentration",
+                                "Temperature",
+                                "Water Availability"
+                            ],
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "light intensity: photosynthesis rate increases with light up to a saturation point",
+                        "cmd": {
+                            "cmd": "graph",
+                            "type": "direct",
+                            "xAxis": "Light Intensity",
+                            "yAxis": "Photosynthesis Rate",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "carbon dioxide concentration: higher CO2 generally increases rate until other factors limit it",
+                        "cmd": {
+                            "cmd": "graph",
+                            "type": "direct",
+                            "xAxis": "CO₂ Concentration",
+                            "yAxis": "Photosynthesis Rate",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "temperature: enzymes have optimal temperatures; too hot or cold reduces efficiency",
+                        "cmd": {
+                            "cmd": "graph",
+                            "type": "bell",
+                            "xAxis": "Temperature",
+                            "yAxis": "Photosynthesis Rate",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "water availability: water stress closes stomata, limiting CO2 intake",
+                        "cmd": {
+                            "cmd": "callout",
+                            "text": "Water deficit reduces CO₂ uptake and photosynthesis.",
+                            "style": "default",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "comparison: photosynthesis vs. cellular respiration",
+                        "cmd": {
+                            "cmd": "vs_block",
+                            "left": "Photosynthesis (Plants)",
+                            "right": "Cellular Respiration (All Organisms)",
+                            "col": "right"
+                        }
+                    },
+                    {
+                        "speech": "global impact: oxygen production, carbon cycle regulation, base of food chains",
+                        "cmd": {
+                            "cmd": "write",
+                            "text": "• Oxygen for atmosphere\n• Removes CO₂ from air\n• Provides food/energy for ecosystems",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "climate change: photosynthesis helps mitigate CO2, but deforestation is a concern",
+                        "cmd": {
+                            "cmd": "note",
+                            "text": "Forests act as carbon sinks, crucial for climate regulation.",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "quiz time: which of these is an output of the light-dependent reactions?",
+                        "cmd": {
+                            "cmd": "quiz",
+                            "question": "Which of the following is an output of the light-dependent reactions of photosynthesis?",
+                            "options": [
+                                "Glucose",
+                                "Carbon Dioxide",
+                                "Oxygen",
+                                "RuBP"
+                            ],
+                            "correctIndex": 2
+                        }
+                    },
+                    {
+                        "speech": "final thoughts: photosynthesis is a fundamental process linking life to solar energy",
+                        "cmd": {
+                            "cmd": "badge",
+                            "text": "Life's Solar Engine",
+                            "color": "green",
+                            "col": "left"
+                        }
+                    },
+                    {
+                        "speech": "today we covered the definition, stages, factors, and global importance of photosynthesis",
+                        "cmd": {
+                            "cmd": "summary",
+                            "text": "We explored photosynthesis, its two stages (light-dependent and Calvin Cycle), limiting factors, and its vital role for all life on Earth."
+                        }
+                    }
+                ]
+            }
+        ],
+        "summary": "Today, we journeyed through the intricate process of photosynthesis, understanding how plants convert light energy into chemical energy. We dissected the light-dependent reactions, focusing on ATP, NADPH, and oxygen production, and then explored the Calvin Cycle's role in fixing carbon dioxide to synthesize glucose. Finally, we examined the environmental factors influencing this process and underscored its profound global significance for oxygen production, the carbon cycle, and sustaining nearly all life forms."
+    }
+}

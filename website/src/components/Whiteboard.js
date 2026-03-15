@@ -33,6 +33,47 @@ const F = {
     small: '400 12px "Inter", "Cairo", sans-serif',
 };
 
+// ─── Auto-fit text helper ─────────────────────────────────────────────────────
+// Shrinks font size first; if still too wide at minSize, wraps into multi-line.
+// Returns { font, lines, lineHeight, fontSize }.
+function _fitText(ctx, text, maxWidth, baseFont, minSize = 10) {
+    const match = baseFont.match(/^(.*?)(\d+)(px.*)$/);
+    if (!match) return { font: baseFont, lines: [text], lineHeight: 20, fontSize: 16 };
+
+    const prefix = match[1];       // e.g. "bold "
+    let size = parseInt(match[2]);  // e.g. 18
+    const suffix = match[3];       // e.g. 'px "Patrick Hand", ...'
+
+    // Step 1: Try reducing font size until text fits in one line
+    while (size > minSize) {
+        const font = `${prefix}${size}${suffix}`;
+        ctx.font = font;
+        if (ctx.measureText(text).width <= maxWidth) {
+            return { font, lines: [text], lineHeight: Math.ceil(size * 1.35), fontSize: size };
+        }
+        size--;
+    }
+
+    // Step 2: At minimum size, wrap into multiple lines word-by-word
+    const finalFont = `${prefix}${minSize}${suffix}`;
+    ctx.font = finalFont;
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+        } else {
+            currentLine = testLine;
+        }
+    }
+    if (currentLine) lines.push(currentLine);
+    // If a single word is wider than maxWidth, it stays on its own line (won't break mid-word)
+    return { font: finalFont, lines, lineHeight: Math.ceil(minSize * 1.35), fontSize: minSize };
+}
+
 // ─── Easing ───────────────────────────────────────────────────────────────────
 function easeOut(t) { return 1 - Math.pow(1 - t, 2.5); }
 function easeIn(t) { return t * t * t; }
@@ -645,7 +686,7 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                     const lw = ctx.measureText(lbl).width;
                     ctx.fillText(lbl, c.x + (maxW - lw) / 2, c.y + 24);
                 }
-                c.y += lbl ? 55 : 44;
+                c.y += lbl ? 65 : 44; // Give it more breathing room
                 break;
             }
 
@@ -686,18 +727,23 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                     default: { fill: 'rgba(255,255,255,0.04)', border: C.muted, text: C.text },
                 };
                 const sc = styleMap[s] || styleMap.default;
-                const font = s === 'formula' ? F.mono : F.write;
-                ctx.font = font;
-                const tw = ctx.measureText(text).width;
-                const bw = Math.min(tw + 52, maxW);
-                const bh = 54;
+                const baseFont = s === 'formula' ? F.mono : F.write;
+                const pad = 16;
+                const bw = maxW;
+                const fit = _fitText(ctx, text, bw - pad * 2, baseFont);
+                const bh = fit.lines.length * fit.lineHeight + 30;
                 const by = c.y - 28;
                 const bx = rtl ? c.x + maxW - bw : c.x;
                 ctx.fillStyle = sc.fill;
                 ctx.fillRect(bx, by, bw, bh);
                 await animRect(ctx, bx, by, bw, bh, sc.border + '99', 2, 500);
-                const textX = rtl ? bx + bw - 16 : bx + 16;
-                await _handwrite(ctx, text, textX, c.y + 4, font, sc.text, animMs * 0.8, rtl);
+                const lineTime = (animMs * 0.8) / fit.lines.length;
+                let ly = c.y + 4;
+                for (const ln of fit.lines) {
+                    const textX = rtl ? bx + bw - pad : bx + pad;
+                    await _handwrite(ctx, ln, textX, ly, fit.font, sc.text, lineTime, rtl);
+                    ly += fit.lineHeight;
+                }
                 c.y += bh + 24;
                 break;
             }
@@ -708,10 +754,10 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 const rtl = _hasArabic(text);
                 const s = cmd.style || 'default';
                 const clr = s === 'highlight' ? C.yellow : s === 'important' ? C.red : C.muted;
-                ctx.font = F.write;
-                const tw = ctx.measureText(text).width;
-                const bw = Math.min(tw + 28, maxW);
-                const bh = 46;
+                const pad = 12;
+                const bw = maxW;
+                const fit = _fitText(ctx, text, bw - pad * 2, F.write);
+                const bh = fit.lines.length * fit.lineHeight + 24;
                 const by = c.y - 24;
                 const bx = rtl ? c.x + maxW - bw : c.x;
                 ctx.fillStyle = clr + '18';
@@ -732,8 +778,13 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 }
                 ctx.fillRect(bx, by, bw, bh);
                 await animRect(ctx, bx, by, bw, bh, clr + '66', 1.5, 400);
-                const textX = rtl ? bx + bw - 12 : bx + 12;
-                await _handwrite(ctx, text, textX, c.y + 4, F.write, clr, animMs * 0.7, rtl);
+                const lineTime = (animMs * 0.7) / fit.lines.length;
+                let ly = c.y + 4;
+                for (const ln of fit.lines) {
+                    const textX = rtl ? bx + bw - pad : bx + pad;
+                    await _handwrite(ctx, ln, textX, ly, fit.font, clr, lineTime, rtl);
+                    ly += fit.lineHeight;
+                }
                 c.y += bh + 24;
                 break;
             }
@@ -860,23 +911,14 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 await animArc(ctx, cx2 + jitter(2), cy2 + jitter(2), r + jitter(1), C.blue + 'cc', 2, 550);
                 await animArc(ctx, cx2 + jitter(2), cy2 + jitter(2), r - 1 + jitter(1), C.blue + '44', 1, 400);
 
-                // Wrap text inside
-                ctx.font = F.label;
-                const words = text.split(' ');
-                const lines = [];
-                let line = '';
-                for (const w of words) {
-                    const test = line ? `${line} ${w}` : w;
-                    if (ctx.measureText(test).width > r * 1.5 && line) { lines.push(line); line = w; }
-                    else line = test;
-                }
-                if (line) lines.push(line);
-                const lh = 16;
-                const startY = cy2 - (lines.length - 1) * lh / 2;
-                for (let li = 0; li < lines.length; li++) {
-                    const lw = ctx.measureText(lines[li]).width;
+                // Wrap text inside with auto-fit
+                const fit = _fitText(ctx, text, r * 1.5, F.label, 9);
+                ctx.font = fit.font;
+                const startY = cy2 - (fit.lines.length - 1) * fit.lineHeight / 2;
+                for (let li = 0; li < fit.lines.length; li++) {
+                    const lw = ctx.measureText(fit.lines[li]).width;
                     ctx.fillStyle = C.text;
-                    ctx.fillText(lines[li], cx2 - lw / 2, startY + li * lh);
+                    ctx.fillText(fit.lines[li], cx2 - lw / 2, startY + li * fit.lineHeight);
                 }
 
                 // Optional label below
@@ -1160,15 +1202,17 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 for (let hi = 0; hi < cols; hi++) {
                     const renderCol = isRTL ? (cols - 1 - hi) : hi;
                     const cellX = tableX + renderCol * colW;
-                    ctx.font = F.labelBd;
+                    const headerText = String(headers[hi]);
+                    const fitH = _fitText(ctx, headerText, colW - 14, F.labelBd, 9);
+                    ctx.font = fitH.font;
                     ctx.fillStyle = C.blue;
 
                     if (isRTL) {
                         ctx.textAlign = 'right';
-                        ctx.fillText(String(headers[hi]).slice(0, 18), cellX + colW - 7, c.y - 5);
+                        ctx.fillText(fitH.lines[0], cellX + colW - 7, c.y - 5);
                     } else {
                         ctx.textAlign = 'left';
-                        ctx.fillText(String(headers[hi]).slice(0, 18), cellX + 7, c.y - 5);
+                        ctx.fillText(fitH.lines[0], cellX + 7, c.y - 5);
                     }
 
                     if (renderCol > 0) {
@@ -1185,20 +1229,22 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                     for (let ci = 0; ci < cols; ci++) {
                         const renderCol = isRTL ? (cols - 1 - ci) : ci;
                         const cellX = tableX + renderCol * colW;
-                        ctx.font = F.label;
+                        const cellText = String(row[ci] ?? '');
+                        const fitC = _fitText(ctx, cellText, colW - 14, F.label, 9);
+                        ctx.font = fitC.font;
                         ctx.fillStyle = C.text + 'cc';
 
                         if (isRTL) {
                             ctx.textAlign = 'right';
-                            ctx.fillText(String(row[ci] ?? '').slice(0, 18), cellX + colW - 7, ry + 17);
+                            ctx.fillText(fitC.lines[0], cellX + colW - 7, ry + 17);
                         } else {
                             ctx.textAlign = 'left';
-                            ctx.fillText(String(row[ci] ?? '').slice(0, 18), cellX + 7, ry + 17);
+                            ctx.fillText(fitC.lines[0], cellX + 7, ry + 17);
                         }
                     }
                 }
                 ctx.textAlign = 'left'; // reset
-                c.y += rowH * (rows.length + 1) + 18;
+                c.y += rowH * (rows.length + 1) + 32; // Give it more breathing room below the table
                 break;
             }
 
@@ -1342,14 +1388,20 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 const colors = { yellow: C.yellow, green: C.green, blue: C.blue, red: C.red, orange: C.orange, pink: C.pink };
                 const col = colors[cmd.color] || C.yellow;
                 c.y += 8;
-                ctx.font = F.write;
-                const tw = ctx.measureText(text).width;
-                const hlX = rtl ? c.x + maxW - tw - 12 : c.x - 2;
-                ctx.fillStyle = col + '28';
-                ctx.fillRect(hlX, c.y - 16, tw + 12, 26);
-                const textX = rtl ? c.x + maxW : c.x + 2;
-                await _handwrite(ctx, text, textX, c.y, F.writeBd, col, animMs, rtl);
-                c.y += 32;
+                const fit = _fitText(ctx, text, maxW - 14, F.writeBd);
+                const lineTime = animMs / fit.lines.length;
+                for (let li = 0; li < fit.lines.length; li++) {
+                    const ln = fit.lines[li];
+                    ctx.font = fit.font;
+                    const tw = ctx.measureText(ln).width;
+                    const hlX = rtl ? c.x + maxW - tw - 12 : c.x - 2;
+                    ctx.fillStyle = col + '28';
+                    ctx.fillRect(hlX, c.y - 16, tw + 12, 26);
+                    const textX = rtl ? c.x + maxW : c.x + 2;
+                    await _handwrite(ctx, ln, textX, c.y, fit.font, col, lineTime, rtl);
+                    c.y += fit.lineHeight + 6;
+                }
+                c.y += 10;
                 break;
             }
 
@@ -1388,40 +1440,43 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 const rtlR = _hasArabic(right);
                 c.y += 12;
                 const bw = (maxW - 30) / 2;
+                const pad = 8;
 
-                // Auto-fit font helper
-                const getFitFont = (text) => {
-                    ctx.font = F.writeBd;
-                    const w = ctx.measureText(text).width;
-                    const pad = 16;
-                    if (w > bw - pad) {
-                        const size = Math.max(11, Math.floor(24 * (bw - pad) / w)); // floor size
-                        return `bold ${size}px "Cairo", "Patrick Hand", "Comic Sans MS", cursive`;
-                    }
-                    return F.writeBd;
-                };
-
-                const fontL = getFitFont(left);
-                const fontR = getFitFont(right);
+                // Auto-fit with wrapping
+                const fitL = _fitText(ctx, left, bw - pad * 2, F.writeBd);
+                const fitR = _fitText(ctx, right, bw - pad * 2, F.writeBd);
+                const maxLines = Math.max(fitL.lines.length, fitR.lines.length);
+                const lh = Math.max(fitL.lineHeight, fitR.lineHeight);
+                const boxH = maxLines * lh + 16;
 
                 // Left box
                 ctx.fillStyle = C.blue + '14';
-                ctx.fillRect(c.x, c.y - 14, bw, 40);
-                await animRect(ctx, c.x, c.y - 14, bw, 40, C.blue + '66', 1.5, 300);
-                const leftX = rtlL ? c.x + bw - 8 : c.x + 8;
-                await _handwrite(ctx, left, leftX, c.y + 8, fontL, C.blue, animMs * 0.3, rtlL);
+                ctx.fillRect(c.x, c.y - 14, bw, boxH);
+                await animRect(ctx, c.x, c.y - 14, bw, boxH, C.blue + '66', 1.5, 300);
+                const lineTimeL = (animMs * 0.3) / fitL.lines.length;
+                let lyL = c.y + 4;
+                for (const ln of fitL.lines) {
+                    const leftX = rtlL ? c.x + bw - pad : c.x + pad;
+                    await _handwrite(ctx, ln, leftX, lyL, fitL.font, C.blue, lineTimeL, rtlL);
+                    lyL += lh;
+                }
                 // VS
                 ctx.font = F.labelBd;
                 ctx.fillStyle = C.muted;
-                ctx.fillText('vs', c.x + bw + 6, c.y + 10);
+                ctx.fillText('vs', c.x + bw + 6, c.y - 14 + boxH / 2 + 4);
                 // Right box
                 const bx2 = c.x + bw + 28;
                 ctx.fillStyle = C.orange + '14';
-                ctx.fillRect(bx2, c.y - 14, bw, 40);
-                await animRect(ctx, bx2, c.y - 14, bw, 40, C.orange + '66', 1.5, 300);
-                const rightX = rtlR ? bx2 + bw - 8 : bx2 + 8;
-                await _handwrite(ctx, right, rightX, c.y + 8, fontR, C.orange, animMs * 0.3, rtlR);
-                c.y += 50;
+                ctx.fillRect(bx2, c.y - 14, bw, boxH);
+                await animRect(ctx, bx2, c.y - 14, bw, boxH, C.orange + '66', 1.5, 300);
+                const lineTimeR = (animMs * 0.3) / fitR.lines.length;
+                let lyR = c.y + 4;
+                for (const ln of fitR.lines) {
+                    const rightX = rtlR ? bx2 + bw - pad : bx2 + pad;
+                    await _handwrite(ctx, ln, rightX, lyR, fitR.font, C.orange, lineTimeR, rtlR);
+                    lyR += lh;
+                }
+                c.y += boxH + 10;
                 break;
             }
 
@@ -1440,12 +1495,16 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                     ctx.arc(px, lineY, 5, 0, Math.PI * 2);
                     ctx.fillStyle = C.blue;
                     ctx.fill();
-                    // Label
-                    ctx.font = F.label;
-                    ctx.fillStyle = C.text;
-                    const lbl = String(points[pi]);
-                    const lw = ctx.measureText(lbl).width;
-                    ctx.fillText(lbl, px - lw / 2, lineY + 22);
+                    // Label (auto-fit to gap between dots)
+                    const labelMaxW = Math.max(30, gap - 8);
+                    const fit = _fitText(ctx, points[pi], labelMaxW, F.label, 9);
+                    ctx.font = fit.font;
+                    let ly = lineY + 18;
+                    for (const ln of fit.lines) {
+                        const lw2 = ctx.measureText(ln).width;
+                        ctx.fillText(ln, px - lw2 / 2, ly);
+                        ly += fit.lineHeight;
+                    }
                 }
                 c.y += 52;
                 break;
@@ -1466,14 +1525,22 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                         const itemText = items[fi];
                         const boxW = maxW - 40;
                         const boxX = isRTL ? c.x + maxW - boxW : c.x + 10;
+                        const pad = 8;
+                        const fit = _fitText(ctx, itemText, boxW - pad * 2, F.write);
+                        const boxH = fit.lines.length * fit.lineHeight + 12;
 
                         ctx.fillStyle = C.blue + '14';
-                        ctx.fillRect(boxX, c.y - 8, boxW, 28);
-                        await animRect(ctx, boxX, c.y - 8, boxW, 28, C.blue + '55', 1.5, 200);
+                        ctx.fillRect(boxX, c.y - 8, boxW, boxH);
+                        await animRect(ctx, boxX, c.y - 8, boxW, boxH, C.blue + '55', 1.5, 200);
                         // Text logic
-                        const textX = isRTL ? boxX + boxW - 8 : boxX + 8;
-                        await _handwrite(ctx, itemText, textX, c.y + 8, F.write, C.text, animMs / items.length * 0.7, isRTL);
-                        c.y += 32;
+                        const lineTime = (animMs / items.length * 0.7) / fit.lines.length;
+                        let ly = c.y + 4;
+                        for (const ln of fit.lines) {
+                            const textX = isRTL ? boxX + boxW - pad : boxX + pad;
+                            await _handwrite(ctx, ln, textX, ly, fit.font, C.text, lineTime, isRTL);
+                            ly += fit.lineHeight;
+                        }
+                        c.y += boxH + 8;
 
                         // Downward arrow
                         if (fi < items.length - 1) {
@@ -1485,53 +1552,60 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                         }
                     }
                 } else {
-                    // Horizontal process
-                    ctx.font = F.label;
-                    const padding = 16;
-                    // Compute realistic box widths instead of hardcoded 80
-                    const widths = items.map(text => ctx.measureText(String(text).slice(0, 20)).width + padding * 2);
-                    const totalBoxW = widths.reduce((a, b) => a + b, 0);
-                    const gap = Math.max(10, (maxW - totalBoxW) / Math.max(1, items.length - 1));
+                    // Horizontal process - fit text within evenly distributed boxes
+                    const hPad = 8;
+                    const arrowGap = 24;
+                    const totalArrowSpace = (items.length - 1) * arrowGap;
+                    const boxW = Math.floor((maxW - totalArrowSpace) / items.length);
 
                     let currX = isRTL ? c.x + maxW : c.x;
 
+                    // Pre-compute fits and find max lines for uniform box height
+                    const fits = items.map(text => _fitText(ctx, String(text), boxW - hPad * 2, F.label, 9));
+                    const maxFitLines = Math.max(...fits.map(f => f.lines.length));
+                    const fitLh = fits[0].lineHeight;
+                    const boxH = maxFitLines * fitLh + 10;
+
                     for (let fi = 0; fi < items.length; fi++) {
-                        const w = widths[fi];
-                        const bx = isRTL ? currX - w : currX;
+                        const bx = isRTL ? currX - boxW : currX;
+                        const fit = fits[fi];
 
                         ctx.fillStyle = C.green + '14';
-                        ctx.fillRect(bx, c.y, w, 28);
-                        await animRect(ctx, bx, c.y, w, 28, C.green + '55', 1.5, 200);
+                        ctx.fillRect(bx, c.y, boxW, boxH);
+                        await animRect(ctx, bx, c.y, boxW, boxH, C.green + '55', 1.5, 200);
 
-                        ctx.font = F.label;
-                        ctx.fillStyle = C.text;
-                        const textStr = String(items[fi]).slice(0, 20);
-                        const strW = ctx.measureText(textStr).width;
-                        const textX = bx + (w - strW) / 2;
-
-                        if (isRTL) {
-                            ctx.textAlign = 'right';
-                            ctx.fillText(textStr, textX + strW, c.y + 18);
-                            ctx.textAlign = 'left';
-                        } else {
-                            ctx.fillText(textStr, textX, c.y + 18);
+                        // Draw each line centered in the box
+                        let ly = c.y + 8 + (maxFitLines - fit.lines.length) * fitLh / 2;
+                        for (const ln of fit.lines) {
+                            ctx.font = fit.font;
+                            ctx.fillStyle = C.text;
+                            const strW = ctx.measureText(ln).width;
+                            const textX = bx + (boxW - strW) / 2;
+                            if (isRTL) {
+                                ctx.textAlign = 'right';
+                                ctx.fillText(ln, textX + strW, ly);
+                                ctx.textAlign = 'left';
+                            } else {
+                                ctx.fillText(ln, textX, ly);
+                            }
+                            ly += fitLh;
                         }
 
-                        currX = isRTL ? currX - w : currX + w;
+                        currX = isRTL ? currX - boxW : currX + boxW;
 
                         if (fi < items.length - 1) {
                             // Arrow
                             if (isRTL) {
-                                await animSketch(ctx, currX - 4, c.y + 14, currX - gap + 4, c.y + 14, C.arrow, 2, 1, 100);
-                                drawArrowHead(ctx, currX - gap + 4, c.y + 14, Math.PI, 6, C.arrow);
+                                await animSketch(ctx, currX - 4, c.y + boxH / 2, currX - arrowGap + 4, c.y + boxH / 2, C.arrow, 2, 1, 100);
+                                drawArrowHead(ctx, currX - arrowGap + 4, c.y + boxH / 2, Math.PI, 6, C.arrow);
                             } else {
-                                await animSketch(ctx, currX + 4, c.y + 14, currX + gap - 4, c.y + 14, C.arrow, 2, 1, 100);
-                                drawArrowHead(ctx, currX + gap - 4, c.y + 14, 0, 6, C.arrow);
+                                await animSketch(ctx, currX + 4, c.y + boxH / 2, currX + arrowGap - 4, c.y + boxH / 2, C.arrow, 2, 1, 100);
+                                drawArrowHead(ctx, currX + arrowGap - 4, c.y + boxH / 2, 0, 6, C.arrow);
                             }
-                            currX = isRTL ? currX - gap : currX + gap;
+                            currX = isRTL ? currX - arrowGap : currX + arrowGap;
                         }
                     }
-                    c.y += 44;
+                    c.y += boxH + 14;
                 }
                 c.y += 8;
                 break;
@@ -1543,13 +1617,19 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
                 const colors = { red: C.red, green: C.green, blue: C.blue, yellow: C.yellow, orange: C.orange, pink: C.pink };
                 const col = colors[cmd.color] || C.red;
                 c.y += 6;
-                ctx.font = F.labelBd;
-                const tw = ctx.measureText(text).width;
+                const fit = _fitText(ctx, text, maxW - 16, F.labelBd, 9);
+                ctx.font = fit.font;
+                const tw = ctx.measureText(fit.lines[0]).width;
+                const badgeH = fit.lines.length * fit.lineHeight + 8;
                 ctx.fillStyle = col + '33';
-                ctx.fillRect(c.x, c.y - 12, tw + 16, 22);
+                ctx.fillRect(c.x, c.y - 12, Math.min(tw + 16, maxW), badgeH);
                 ctx.fillStyle = col;
-                ctx.fillText(text, c.x + 8, c.y + 4);
-                c.y += 26;
+                let ly = c.y + 4;
+                for (const ln of fit.lines) {
+                    ctx.fillText(ln, c.x + 8, ly);
+                    ly += fit.lineHeight;
+                }
+                c.y += badgeH + 8;
                 break;
             }
 
@@ -1853,6 +1933,26 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             const canvas = canvasRef.current;
             if (canvas) _clear(canvas.getContext('2d'));
         },
+        /** Capture a region of the canvas as base64 PNG (no data: prefix) */
+        getCanvasSnapshot(x, y, w, h) {
+            const canvas = canvasRef.current;
+            if (!canvas) return null;
+            const dpr = window.devicePixelRatio || 1;
+            // Clamp to canvas bounds
+            const sx = Math.max(0, Math.floor(x * dpr));
+            const sy = Math.max(0, Math.floor(y * dpr));
+            const sw = Math.min(canvas.width - sx, Math.floor(w * dpr));
+            const sh = Math.min(canvas.height - sy, Math.floor(h * dpr));
+            if (sw <= 0 || sh <= 0) return null;
+            const tmpCanvas = document.createElement('canvas');
+            tmpCanvas.width = sw;
+            tmpCanvas.height = sh;
+            const tmpCtx = tmpCanvas.getContext('2d');
+            tmpCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+            // Return base64 without data: prefix
+            return tmpCanvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
+        },
+        getCanvasEl() { return canvasRef.current; },
     }), [enqueue]);
 
     return (
