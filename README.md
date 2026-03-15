@@ -3,6 +3,8 @@
 
 **Smart Lecture APP** is an innovative, interactive educational platform powered by the **Gemini Live API**. This cutting-edge app is designed to deliver a live classroom experience where students can interact with an AI professor, ask real-time questions, and receive explanations with dynamic visual aids. The platform takes online education to the next level by creating an engaging, personalized, and immersive learning environment.
 
+![Smart Lecture APP](ui.png)
+
 ### **The Core Idea**
 
 Traditional online learning methods often lack interactivity and personalized feedback. **Smart Lecture APP** aims to solve these challenges by offering an AI-powered professor that not only delivers structured lessons but also adapts in real-time to the student’s needs.
@@ -31,14 +33,6 @@ The **Smart Lecture APP** addresses key challenges in traditional online educati
 
 By combining AI with a dynamic whiteboard and real-time voice interaction, **Smart Lecture APP** provides a solution that actively engages students and helps them understand complex topics.
 
-## **Visual Design**
-
-### *Smart Lecture APP: AI Professor in Action*
-
-Here is a visual representation of the **Smart Lecture APP** interface:
-
-![Smart Lecture APP](ui.png)
-
 > **The AI Professor explaining energy conservation concepts**: The professor interacts with the whiteboard, explaining important concepts with visuals that update in real time.
 
 ### *System Architecture Overview*
@@ -57,13 +51,17 @@ Here’s a screenshot of the **Cloud Run Dashboard** where the app is deployed:
 
 ![Google Cloud Run](cloud-run.png)
 
+Website: https://gemini-live-944422465732.europe-west1.run.app/
+
+Api: https://api-55200224265.europe-west1.run.app/
+
 ## **Additional Media**
 
 ### Watch the Demo:
 
 Check out the demo video of **Smart Lecture APP** on YouTube:
 
-![Watch the demo](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+[![Watch the demo](thu.png)]([https://www.youtube.com/watch?v=dQw4w9WgXcQ](https://youtu.be/6jEPjU2U6uk))
 
 > **YouTube Demo Video**: The video provides a comprehensive look at how the AI professor teaches, answers questions, and uses the whiteboard to explain concepts in real time.
 
