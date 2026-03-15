@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
+  <img src="https://raw.githubusercontent.com/google/gemini-api-cookbook/main/assets/gemini-logo.png" alt="Gemini Logo" width="120" />
+  <h1>Gemini Live App - Frontend UI 🎨</h1>
+  <p><i>The interactive Next.js application featuring a smart multimedia whiteboard.</i></p>
 
-## Getting Started
+  [![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)](#)
+  [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](#)
+  [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)](#)
+</div>
 
-First, run the development server:
+---
 
+## 📖 Overview
+
+This directory houses the frontend Next.js application. It provides the user interface for the AI tutor, including the interactive whiteboard, tool palette (pen, eraser, select), continuous audio waveform visualizations, and handles user interactions (canvas snapshots, media capture) to send gracefully back to the `api` backend.
+
+---
+
+## 💻 Local Setup (Development)
+
+Follow these steps to run the Next.js frontend on your local development machine.
+
+### 1️⃣ Prerequisites
+Ensure you have [Node.js](https://nodejs.org/) installed.
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+node -v
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2️⃣ Installation
+Navigate into the `website` directory and install the necessary npm packages:
+```bash
+cd website
+npm install
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### 3️⃣ Environment Variables
+The frontend needs to know where your backend API is situated. Create a `.env.local` file:
+```bash
+touch .env.local
+```
+Add your local backend WebSocket URL:
+```env
+NEXT_PUBLIC_API_WS_URL="ws://localhost:8080"
+```
+*(Make sure the port matches the one defined in your backend's `.env`!)*
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4️⃣ Start the Dev Server
+Launch Next.js in development mode (which supports hot-reloading for rapid UI iteration):
+```bash
+npm run dev
+```
+> 🎉 **Success:** Open [http://localhost:3000](http://localhost:3000) in your browser to view the application!
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## ☁️ Google Cloud Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+If you are transitioning to cloud deployment (e.g., using **Google Cloud Shell** or a **Compute Engine** instance), follow these steps.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Step-by-Step
 
-## Deploy on Vercel
+| Step | Action | Command/Details |
+| :--- | :--- | :--- |
+| **1.** | **Navigate** | `cd path/to/project/website` |
+| **2.** | **Install** | `npm install` |
+| **3.** | **Configure** | `nano .env.local`. Point `NEXT_PUBLIC_API_WS_URL` to your backend's public IP (e.g., `ws://34.123.45.67:8080`). Save: `Ctrl+O`, `Enter`, `Ctrl+X`. |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Running the Production Server
+Next.js projects run significantly faster when properly built for production.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+# 1. Compile the optimized production build
+npm run build
+
+# 2. Start the production server
+npm start
+```
+By default, the application will spin up on port **3000**.
+
+### 🔒 Networking Notes
+1. **VM Firewall:** If running on a standalone VM, ensure you edit your VPC firewall rules to allow **Ingress** on **tcp:3000**.
+2. **Cloud Shell Preview:** If testing strictly inside Cloud Shell without exposing it to the web, you can use the built-in **Web Preview** button (top right of Cloud Shell) and map it to port `3000`.
+
+---
+
+<br>
+<div align="center">
+  <i>Crafted for the future of interactive AI education.</i>
+</div>

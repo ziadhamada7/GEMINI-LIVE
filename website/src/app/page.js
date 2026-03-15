@@ -167,7 +167,7 @@ export default function SetupPage() {
         <header className="home-header">
           <div className="home-logo">
             <div className="logo-g">G</div>
-            <span style={{ fontWeight: 600 }}>Gemini Live</span> <span style={{ fontWeight: 300 }}>API</span>
+            <span style={{ fontWeight: 600 }}>Smart Lecture</span> <span style={{ fontWeight: 300 }}>APP</span>
           </div>
           <p className="home-subtitle">Your Interactive AI Tutor for Live Learning</p>
         </header>

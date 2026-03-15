@@ -296,8 +296,9 @@ function drawArrowHead(ctx, x, y, angle, size, color) {
 }
 
 // ─── Whiteboard Component ─────────────────────────────────────────────────────
-const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 }, ref) {
+const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560, activeTool = null, penColor = '#ef4444', onDrawStart }, ref) {
     const canvasRef = useRef(null);
+    const userCanvasRef = useRef(null);
     const cursorRef = useRef({ x: 44, y: 58 });
     const animQueueRef = useRef([]);
     const historyRef = useRef([]);
@@ -305,16 +306,30 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
     const frozenRef = useRef(false);
 
     useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-        canvas.style.width = width + 'px';
-        canvas.style.height = height + 'px';
-        ctx.scale(dpr, dpr);
-        _clear(ctx);
+        // Main AI Canvas
+        const canvas = canvasRef.current;
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            ctx.scale(dpr, dpr);
+            _clear(ctx);
+        }
+        // User Drawing Canvas Overlay
+        const userCanvas = userCanvasRef.current;
+        if (userCanvas) {
+            const uCtx = userCanvas.getContext('2d');
+            userCanvas.width = width * dpr;
+            userCanvas.height = height * dpr;
+            userCanvas.style.width = width + 'px';
+            userCanvas.style.height = height + 'px';
+            uCtx.scale(dpr, dpr);
+            uCtx.lineCap = 'round';
+            uCtx.lineJoin = 'round';
+        }
     }, [width, height]);
 
     function _clear(ctx) {
@@ -1936,6 +1951,7 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
         /** Capture a region of the canvas as base64 PNG (no data: prefix) */
         getCanvasSnapshot(x, y, w, h) {
             const canvas = canvasRef.current;
+            const userCanvas = userCanvasRef.current;
             if (!canvas) return null;
             const dpr = window.devicePixelRatio || 1;
             // Clamp to canvas bounds
@@ -1948,12 +1964,79 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             tmpCanvas.width = sw;
             tmpCanvas.height = sh;
             const tmpCtx = tmpCanvas.getContext('2d');
+            // Draw main canvas
             tmpCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+            // Draw user drawing canvas on top
+            if (userCanvas) {
+                tmpCtx.drawImage(userCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+            }
             // Return base64 without data: prefix
             return tmpCanvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
         },
         getCanvasEl() { return canvasRef.current; },
-    }), [enqueue]);
+        clearUserDrawing() {
+            const uCanvas = userCanvasRef.current;
+            if (uCanvas) {
+                const uCtx = uCanvas.getContext('2d');
+                uCtx.clearRect(0, 0, width, height);
+            }
+        }
+    }), [enqueue, width, height]);
+
+    // ── User Drawing Logic ─────────────────────────────────────────────────
+    const isDrawingRef = useRef(false);
+    const lastPosRef = useRef(null);
+
+    const getPos = useCallback((e) => {
+        const rect = userCanvasRef.current.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }, []);
+
+    const handlePointerDown = useCallback((e) => {
+        if (activeTool !== 'Pen' && activeTool !== 'Eraser') return;
+        isDrawingRef.current = true;
+        lastPosRef.current = getPos(e);
+        if (onDrawStart) onDrawStart();
+
+        const uCtx = userCanvasRef.current.getContext('2d');
+        uCtx.beginPath();
+        uCtx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
+        uCtx.lineTo(lastPosRef.current.x, lastPosRef.current.y);
+
+        if (activeTool === 'Eraser') {
+            uCtx.globalCompositeOperation = 'destination-out';
+            uCtx.strokeStyle = 'rgba(0,0,0,1)';
+            uCtx.lineWidth = 20;
+        } else {
+            uCtx.globalCompositeOperation = 'source-over';
+            uCtx.strokeStyle = penColor;
+            uCtx.lineWidth = 3;
+        }
+        uCtx.stroke();
+    }, [activeTool, penColor, onDrawStart, getPos]);
+
+    const handlePointerMove = useCallback((e) => {
+        if (!isDrawingRef.current) return;
+        const pos = getPos(e);
+        const uCtx = userCanvasRef.current.getContext('2d');
+
+        uCtx.lineTo(pos.x, pos.y);
+        uCtx.stroke();
+
+        // Smooth out the line by resetting the path to continue from here
+        uCtx.beginPath();
+        uCtx.moveTo(pos.x, pos.y);
+
+        lastPosRef.current = pos;
+    }, [getPos]);
+
+    const handlePointerUp = useCallback(() => {
+        isDrawingRef.current = false;
+        lastPosRef.current = null;
+    }, []);
 
     return (
         <div className="relative w-full h-full">
@@ -1967,6 +2050,23 @@ const Whiteboard = forwardRef(function Whiteboard({ width = 900, height = 560 },
             <canvas
                 ref={canvasRef}
                 style={{ display: 'block', borderRadius: '14px', background: C.bg }}
+            />
+            {/* User Drawing Overlay */}
+            <canvas
+                ref={userCanvasRef}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerOut={handlePointerUp}
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    display: 'block',
+                    borderRadius: '14px',
+                    pointerEvents: (activeTool === 'Pen' || activeTool === 'Eraser') ? 'auto' : 'none',
+                    touchAction: 'none'
+                }}
             />
         </div>
     );

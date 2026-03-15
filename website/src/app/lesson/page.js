@@ -34,12 +34,13 @@ export default function LessonPage() {
     const [boardHeight, setBoardHeight] = useState(520);
     const boardAreaRef = useRef(null);
 
-    // Selection tool state
+    // Selection & Drawing Tool state
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectionRect, setSelectionRect] = useState(null);
     const [showCommentPopup, setShowCommentPopup] = useState(false);
     const [commentText, setCommentText] = useState('');
     const [isSendingExplain, setIsSendingExplain] = useState(false);
+    const [penColor, setPenColor] = useState('#ef4444'); // Default red
     const selectionStartRef = useRef(null);
     const overlayRef = useRef(null);
 
@@ -291,6 +292,10 @@ export default function LessonPage() {
     const handlePlay = useCallback(() => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
         wsRef.current.send(JSON.stringify({ type: 'play' }));
+        // Clear user drawings when resuming the lesson
+        if (boardRef.current && boardRef.current.clearUserDrawing) {
+            boardRef.current.clearUserDrawing();
+        }
     }, []);
 
     const handleStop = useCallback(() => {
@@ -327,24 +332,36 @@ export default function LessonPage() {
     const isQA = ['listening', 'answering', 'confirming'].includes(status);
     const canToggleMic = status === 'teaching' || status === 'confirming' || (status === 'listening' && micActive);
 
-    // ── Selection Tool Handlers ───────────────────────────────────────────
-    const handleSelectToolToggle = useCallback(() => {
-        if (selectionMode) {
+    const handleToolSelect = useCallback((tool) => {
+        if (activeTool === tool) {
             // Deactivate
-            setSelectionMode(false);
-            setSelectionRect(null);
-            setShowCommentPopup(false);
-            setCommentText('');
             setActiveTool(null);
+            if (tool === 'Select') {
+                setSelectionMode(false);
+                setSelectionRect(null);
+                setShowCommentPopup(false);
+                setCommentText('');
+            }
         } else {
             // Activate: pause lesson first
-            setSelectionMode(true);
-            setActiveTool('Select');
-            if (status === 'teaching') {
-                handlePause();
+            setActiveTool(tool);
+            if (tool === 'Select') {
+                setSelectionMode(true);
+                if (status === 'teaching') handlePause();
+            } else if (tool === 'Pen' || tool === 'Eraser') {
+                setSelectionMode(false);
+                setSelectionRect(null);
+                setShowCommentPopup(false);
             }
         }
-    }, [selectionMode, status, handlePause]);
+    }, [activeTool, status, handlePause]);
+
+    const handleUserDrawStart = useCallback(() => {
+        // Automatically pause when user begins to draw
+        if (status === 'teaching' || status === 'listening') {
+            handlePause();
+        }
+    }, [status, handlePause]);
 
     const handleOverlayMouseDown = useCallback((e) => {
         if (!selectionMode || showCommentPopup) return;
@@ -488,8 +505,8 @@ export default function LessonPage() {
             <aside className="toolbar">
                 {/* Select & Comment Tool */}
                 <div
-                    className={`tool-icon ${selectionMode ? 'active' : ''}`}
-                    onClick={handleSelectToolToggle}
+                    className={`tool-icon ${activeTool === 'Select' ? 'active' : ''}`}
+                    onClick={() => handleToolSelect('Select')}
                     title="Select & Comment"
                 >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -497,6 +514,45 @@ export default function LessonPage() {
                         <path d="M9 14l2 2 4-4" />
                     </svg>
                 </div>
+
+                {/* Pen Tool */}
+                <div
+                    className={`tool-icon ${activeTool === 'Pen' ? 'active' : ''}`}
+                    onClick={() => handleToolSelect('Pen')}
+                    title="Pen tool"
+                    style={{ position: 'relative' }}
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle>
+                    </svg>
+
+                    {/* Color Picker Flyout */}
+                    {activeTool === 'Pen' && (
+                        <div className="color-picker-flyout">
+                            {['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#ffffff', '#000000'].map(c => (
+                                <div
+                                    key={c}
+                                    className={`color-swatch ${penColor === c ? 'selected' : ''}`}
+                                    style={{ backgroundColor: c }}
+                                    onClick={(e) => { e.stopPropagation(); setPenColor(c); }}
+                                    title={c}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Eraser Tool */}
+                <div
+                    className={`tool-icon ${activeTool === 'Eraser' ? 'active' : ''}`}
+                    onClick={() => handleToolSelect('Eraser')}
+                    title="Eraser"
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 20H7L3 16C2.5 15.5 2.5 14.5 3 14L13 4C13.5 3.5 14.5 3.5 15 4L20 9C20.5 9.5 20.5 10.5 20 11L11 20"></path><path d="M17 14L7 14"></path>
+                    </svg>
+                </div>
+
                 <div className="tool-divider" />
                 <div className="tool-icon" title="Settings">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
@@ -506,7 +562,14 @@ export default function LessonPage() {
             {/* ─── WHITEBOARD AREA ─── */}
             <main className="board-area" ref={boardAreaRef}>
                 <div className={`whiteboard-wrapper board-texture-${currentTheme.split('-')[1] || currentTheme}`} style={{ position: 'relative', maxWidth: boardWidth + 'px' }}>
-                    <Whiteboard ref={boardRef} width={boardWidth} height={boardHeight} />
+                    <Whiteboard
+                        ref={boardRef}
+                        width={boardWidth}
+                        height={boardHeight}
+                        activeTool={activeTool}
+                        penColor={penColor}
+                        onDrawStart={handleUserDrawStart}
+                    />
 
                     {/* Selection Overlay */}
                     {selectionMode && (
