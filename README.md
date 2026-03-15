@@ -61,15 +61,11 @@ Api: https://api-55200224265.europe-west1.run.app/
 
 Check out the demo video of **Smart Lecture APP** on YouTube:
 
-[![Watch the demo](thu.png)]([https://www.youtube.com/watch?v=dQw4w9WgXcQ](https://youtu.be/6jEPjU2U6uk))
+▶️ [Watch the demo](https://youtu.be/6jEPjU2U6uk)
 
 > **YouTube Demo Video**: The video provides a comprehensive look at how the AI professor teaches, answers questions, and uses the whiteboard to explain concepts in real time.
 
 ---
 
 This project combines cutting-edge AI technology with educational tools to create an interactive, engaging, and effective learning experience. With the **Smart Lecture APP**, students can experience a personalized classroom environment from anywhere, anytime.
-
----
-
-# **End of README**
 
