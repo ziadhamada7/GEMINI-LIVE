@@ -35,6 +35,7 @@ export default function SetupPage() {
   // New UI Options
   const [selectedTheme, setSelectedTheme] = useState('light-dot');
   const [selectedVoice, setSelectedVoice] = useState('Puck');
+  const [history, setHistory] = useState([]);
 
   const fileRef = useRef(null);
 
@@ -45,11 +46,35 @@ export default function SetupPage() {
     if (savedTheme) setSelectedTheme(savedTheme);
     if (savedVoice) setSelectedVoice(savedVoice);
 
+    // Load topic history
+    try {
+      const saved = JSON.parse(localStorage.getItem('topic_history') || '[]');
+      setHistory(saved);
+    } catch { setHistory([]); }
+
     // Apply body theme immediately for preview
     document.body.className = '';
     const themeObj = THEMES.find(t => t.id === (savedTheme || 'light-dot'));
     if (themeObj?.mode === 'dark') document.body.classList.add('theme-dark');
   }, []);
+
+  const addToHistory = (topicName) => {
+    const entry = { topic: topicName, date: new Date().toLocaleDateString() };
+    const updated = [entry, ...history.filter(h => h.topic !== topicName)].slice(0, 10);
+    setHistory(updated);
+    localStorage.setItem('topic_history', JSON.stringify(updated));
+  };
+
+  const removeFromHistory = (topicName) => {
+    const updated = history.filter(h => h.topic !== topicName);
+    setHistory(updated);
+    localStorage.setItem('topic_history', JSON.stringify(updated));
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem('topic_history');
+  };
 
   const handleThemeChange = (themeId) => {
     setSelectedTheme(themeId);
@@ -75,6 +100,9 @@ export default function SetupPage() {
     setError(null);
 
     try {
+      // Save custom topic to history
+      if (topic.trim()) addToHistory(topic.trim());
+
       const formData = new FormData();
       formData.append('topic', topic.trim());
       formData.append('language', lang);
@@ -238,6 +266,32 @@ export default function SetupPage() {
 
           {error && <div className="error-toast">⚠️ {error}</div>}
         </div>
+
+        {/* ─── Topic History ─── */}
+        {history.length > 0 && (
+          <div className="history-section">
+            <div className="history-header">
+              <span className="history-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                Recent Topics
+              </span>
+              <button className="history-clear-btn" onClick={clearHistory}>Clear All</button>
+            </div>
+            <div className="history-chips">
+              {history.map((h, i) => (
+                <div key={i} className="history-chip" onClick={() => { setTopic(h.topic); }}>
+                  <span className="history-chip-text">{h.topic}</span>
+                  <button
+                    className="history-chip-remove"
+                    onClick={e => { e.stopPropagation(); removeFromHistory(h.topic); }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
