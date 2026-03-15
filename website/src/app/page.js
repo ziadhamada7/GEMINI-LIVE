@@ -58,22 +58,50 @@ export default function SetupPage() {
     if (themeObj?.mode === 'dark') document.body.classList.add('theme-dark');
   }, []);
 
-  const addToHistory = (topicName) => {
+  const addToHistory = (topicName, plan) => {
     const entry = { topic: topicName, date: new Date().toLocaleDateString() };
     const updated = [entry, ...history.filter(h => h.topic !== topicName)].slice(0, 10);
     setHistory(updated);
     localStorage.setItem('topic_history', JSON.stringify(updated));
+    // Store plan separately keyed by topic name
+    if (plan) {
+      try {
+        localStorage.setItem('topic_plan_' + topicName, JSON.stringify(plan));
+      } catch (e) { console.warn('Could not save plan to history:', e); }
+    }
   };
 
   const removeFromHistory = (topicName) => {
     const updated = history.filter(h => h.topic !== topicName);
     setHistory(updated);
     localStorage.setItem('topic_history', JSON.stringify(updated));
+    localStorage.removeItem('topic_plan_' + topicName);
   };
 
   const clearHistory = () => {
+    // Also clear all saved plans
+    history.forEach(h => localStorage.removeItem('topic_plan_' + h.topic));
     setHistory([]);
     localStorage.removeItem('topic_history');
+  };
+
+  const handleHistoryTopic = (topicName) => {
+    // Check if we have a saved plan for this topic
+    const savedPlan = localStorage.getItem('topic_plan_' + topicName);
+    if (savedPlan) {
+      try {
+        const plan = JSON.parse(savedPlan);
+        sessionStorage.setItem('lessonPlan', JSON.stringify(plan));
+        sessionStorage.setItem('lessonId', `history-${Date.now()}`);
+        sessionStorage.setItem('lessonLang', lang);
+        sessionStorage.setItem('lessonSources', JSON.stringify([{ name: topicName, type: 'History' }]));
+        setLoading(true);
+        router.push('/lesson');
+        return;
+      } catch (e) { /* fall through to just fill input */ }
+    }
+    // No saved plan — just fill the input
+    setTopic(topicName);
   };
 
   const handleThemeChange = (themeId) => {
@@ -100,9 +128,6 @@ export default function SetupPage() {
     setError(null);
 
     try {
-      // Save custom topic to history
-      if (topic.trim()) addToHistory(topic.trim());
-
       const formData = new FormData();
       formData.append('topic', topic.trim());
       formData.append('language', lang);
@@ -121,6 +146,9 @@ export default function SetupPage() {
         setLoading(false);
         return;
       }
+
+      // Save custom topic to history (with plan)
+      if (topic.trim()) addToHistory(topic.trim(), data.plan);
 
       // Store the lesson plan, language, and navigate to lesson page
       sessionStorage.setItem('lessonPlan', JSON.stringify(data.plan));
@@ -279,7 +307,7 @@ export default function SetupPage() {
             </div>
             <div className="history-chips">
               {history.map((h, i) => (
-                <div key={i} className="history-chip" onClick={() => { setTopic(h.topic); }}>
+                <div key={i} className="history-chip" onClick={() => handleHistoryTopic(h.topic)}>
                   <span className="history-chip-text">{h.topic}</span>
                   <button
                     className="history-chip-remove"
