@@ -25,10 +25,6 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy full source code
 COPY . .
 
-# Set build-time env (can be overridden at deploy time)
-ARG NEXT_PUBLIC_API_WS_URL="ws://localhost:8080"
-ENV NEXT_PUBLIC_API_WS_URL=${NEXT_PUBLIC_API_WS_URL}
-
 # Build the optimised production bundle
 RUN npm run build
 
