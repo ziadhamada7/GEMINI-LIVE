@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { LANGUAGES } from '@/i18n/locales';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api-55200224265.europe-west1.run.app';
 
 // Theme & Voice options logic
 const THEMES = [

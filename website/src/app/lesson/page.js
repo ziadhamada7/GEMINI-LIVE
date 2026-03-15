@@ -6,7 +6,7 @@ import { useAudio } from '@/hooks/useAudio';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { LANGUAGES } from '@/i18n/locales';
 
-const WS_URL = process.env.NEXT_PUBLIC_API_WS_URL ?? 'ws://localhost:3001';
+const WS_URL = process.env.NEXT_PUBLIC_API_WS_URL ?? 'wss://api-55200224265.europe-west1.run.app';
 
 export default function LessonPage() {
     const { t, lang, setLang } = useLanguage();
